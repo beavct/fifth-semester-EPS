@@ -4,11 +4,20 @@ COMPFLAGS= -Wall -ansi -O2 -g
 
 ###################################################################################
 
-OBJS= newsh.o
+NEWSH_OBJ= newsh.o
+EP1_OBJ= ep1.o
 
 ###################################################################################
 
-newsh: ${OBJS}
+newsh.o: newsh.h
+#ep1.o: ep1.h
+
+all: newsh ep1
+
+newsh: ${NEWSH_OBJ}
 	${PP} ${COMPFLAGS} -o newsh newsh.c -lreadline
 	@rm -rf *.o
 
+ep1: ${EP1_OBJ}
+	${PP} ${COMPFLAGS} -o ep1 ep1.c
+	@rm -rf *.o
