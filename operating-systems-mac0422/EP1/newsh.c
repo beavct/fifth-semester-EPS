@@ -82,14 +82,29 @@ void uname_command(void){
 }
 
 void ps_command(){
-
-    /* -a: Select all processes except both session leaders  (see  getsid(2))  and  processes  not
-    *  associated with a terminal. */
     printf("/bin/ps a\n");
+
+    char *path = "/bin/ps";
+    char *argv[] = {"-e", (char *)0};
+    /*char *envp[] = {"ok", (char *)0};    */
+
+    execve(path, argv, NULL);
 
 }
 
 void ls_command(){
+    printf("/bin/ls --color=never -1t\n");
+
+    char *path = "/bin/ls";
+    char *argv[] = {"--color=never", "-1t", (char *)0};
+    /*char *envp[] = {"ok", (char *)0};    */
+
+    execve(path, argv, NULL);        
+}
+
+
+/* TESTE */
+void ls_command1(){
     printf("/bin/ls --color=never -1t\n");
     /*-1 um por coluna, -t ordenar por tempo, mais novos primeiro (da pra usar o stat que é syscall)*/
 
@@ -130,10 +145,11 @@ void ep1_command(){
     char ep1_string[4] = "ep1";
     getcwd(path, 1024);
     strcat(path, ep1_string);
-    char *argv_ex[] = {"./ep1 2 trace.txt output.txt", (char*)0}; 
+    char *argv_ex[] = {"./ep1", "2", "tracefile1", "output.txt", (char*)0}; 
     /*char* envp[] = { "some", "environment", NULL };*/
 
-    printf("RESULTADO %d\n", execve(path, argv_ex, NULL));    
+    execve("./ep1", argv_ex, NULL);
+
 }
 
 void main_loop(){
