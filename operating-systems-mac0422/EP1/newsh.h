@@ -18,7 +18,6 @@ void uname_command(void);
 /* Comando ps a */
 void ps_command();
 /* Comando ls */
-void ls_command1(); /*TESTE*/
 void ls_command();
 /* Comando executável externo (ep1) */
-void ep1_command();
+void ep1_command(char *argv);

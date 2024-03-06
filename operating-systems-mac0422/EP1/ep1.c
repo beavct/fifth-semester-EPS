@@ -33,13 +33,14 @@ int main(int argc, char **argv){
         printf("%d %s\n",i, argv[i]);
     }
 
-    printf("teste\n");
-    if (argc < 3) {
+    printf("argc: %d\n", argc);
+    if (argc != 4) {
         fprintf(stderr,"Uso: %s <# escalonador> <trace file> <output file>\n",argv[0]);
-        /*exit(1);*/
+        exit(1);
     }
+    /*
     read_tracefile(argv[2]);
-    write_file(argv[3]);
+    write_file(argv[3]);*/
 
     return 0;
 }

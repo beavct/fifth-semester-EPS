@@ -2,7 +2,6 @@
 /* #define _GNU_SOURCE */
 #include <sys/syscall.h>
 #include <unistd.h>
-
 #include <stdio.h>
 #include "newsh.h"
 
@@ -10,15 +9,13 @@
 #include <readline/history.h>
 
 /* Confirmar se pode usar */
-#include <sys/time.h>
-#include <time.h>
-#include <sys/types.h>
+#include <sys/utsname.h> /*struct utsname*/
+#include <sys/time.h> /*gettimeofday*/
+#include <sys/types.h> /*uid_t*/
 #include <pwd.h> /*mexer no arquivo pwd*/
-#include <string.h>
-#include <sys/utsname.h>
 #include <stdlib.h> /*free*/
-#include <dirent.h> /*conteúdo do diretório*/
-#include <sys/stat.h> /* syscall stat*/
+#include <string.h> /*strtok*/
+#include <sys/wait.h> /*waitpid*/
 
 /* Printa o prompt com o nome de usuário + hora atual */
 char *get_prompt(){
@@ -47,7 +44,6 @@ char *get_prompt(){
 }
 
 void cd_command(char *path){
-    printf("cd\n");
 
     /* Syscall: chdir (change working directory) */
     chdir(&path[3]);
@@ -58,7 +54,6 @@ void cd_command(char *path){
 }
 
 void rm_command(char *path){
-    printf("rm\n");
 
     /* Syscall: unlink, remove the specified FILE*/
     if(unlink(&path[3])==-1){
@@ -70,7 +65,6 @@ void rm_command(char *path){
 }
 
 void uname_command(void){
-    printf("uname -a\n");
 
     /* Syscall: uname, get system info*/
     struct utsname system_info;
@@ -82,10 +76,9 @@ void uname_command(void){
 }
 
 void ps_command(){
-    printf("/bin/ps a\n");
 
     char *path = "/bin/ps";
-    char *argv[] = {"-e", (char *)0};
+    char *argv[] = {"x", (char *)0};
     /*char *envp[] = {"ok", (char *)0};    */
 
     execve(path, argv, NULL);
@@ -93,7 +86,6 @@ void ps_command(){
 }
 
 void ls_command(){
-    printf("/bin/ls --color=never -1t\n");
 
     char *path = "/bin/ls";
     char *argv[] = {"--color=never", "-1t", (char *)0};
@@ -102,51 +94,15 @@ void ls_command(){
     execve(path, argv, NULL);        
 }
 
+void ep1_command(char *argv){
 
-/* TESTE */
-void ls_command1(){
-    printf("/bin/ls --color=never -1t\n");
-    /*-1 um por coluna, -t ordenar por tempo, mais novos primeiro (da pra usar o stat que é syscall)*/
+    /* Pegar argumentos da string argv e separá-los */
+    char *ep1str = strtok(argv, " ");
+    char *escalonador = strtok(NULL, " ");
+    char *tracefile = strtok(NULL, " ");
+    char *outputfile = strtok(NULL, " ");
 
-    /* Syscall: getcwd, conseguir o caminho atual */
-    char path[1024];
-    getcwd(path, 1024);
-
-    DIR *diretory_pointer;
-    diretory_pointer = opendir(path);
-
-    struct dirent *entry;
-    /*struct stat *files_info;*/
-
-    /*struct file_info{
-        char*
-    }*/
-
-
-    /* Syscall: readdir, */
-    while( (entry=readdir(diretory_pointer)) ){
-        printf("%s\n", entry->d_name);
-        /*stat(entry->d_name, files_info);*/
-        /*printf("%s\n", );*/
-    }
-
-    /*verificar ordem e arquivos a mais*/
-
-
-    closedir(diretory_pointer);
-
-}
-
-void ep1_command(){
-    printf("ep1\n");
-
-    /* Syscall: getcwd, conseguir o caminho atual */
-    char path[1024];
-    char ep1_string[4] = "ep1";
-    getcwd(path, 1024);
-    strcat(path, ep1_string);
-    char *argv_ex[] = {"./ep1", "2", "tracefile1", "output.txt", (char*)0}; 
-    /*char* envp[] = { "some", "environment", NULL };*/
+    char *argv_ex[] = {ep1str, escalonador, tracefile, outputfile, (char *)0};
 
     execve("./ep1", argv_ex, NULL);
 
@@ -156,7 +112,7 @@ void main_loop(){
     /* Para verificar os comandos "cd" e "rm" */
     char command1[3];
     /* Para verificar o comando "ep1" */
-    char command2[4];
+    char command2[6];
 
     static char *line_read = (char *)NULL;
 
@@ -177,8 +133,8 @@ void main_loop(){
         strncpy(command1, line_read, 2);
         command1[2] = '\0';
 
-        strncpy(command2, line_read, 3);
-        command2[3] = '\0';
+        strncpy(command2, line_read, 5);
+        command2[5] = '\0';
 
         /* Comandos internos */
         if(!strcmp(command1, "cd")){
@@ -196,19 +152,32 @@ void main_loop(){
             uname_command();
 
         }
-        else if(!strcmp(command2, "ep1")){
+        else if(!strcmp(command2, "./ep1")){
+            int status;
 
-            ep1_command();
+            if(fork() != 0)
+                waitpid(-1, &status, 0);
+            else
+                ep1_command(line_read);
 
         }
         else if(!strcmp(line_read, "/bin/ps a")){
+            int status;
 
-            ps_command();
+            if(fork() != 0)
+                waitpid(-1, &status, 0);
+            else
+                ps_command();
+
 
         }
         else if(!strcmp(line_read, "/bin/ls --color=never -1t")){
+            int status;
 
-            ls_command();
+            if(fork() != 0)
+                waitpid(-1, &status, 0);
+            else
+                ls_command();
 
         }
         else{
