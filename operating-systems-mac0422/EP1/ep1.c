@@ -7,12 +7,13 @@ void read_tracefile(char *name){
 
     fptr = fopen(name, "r");
 
-    char myString[100];
+    char myString[1024];
 
-    fgets(myString, 100, fptr);
+    while(fgets(myString, 1024, fptr) != NULL)
+        printf("%s", myString);
 
-    printf("%s", myString);
-
+    printf("\n");
+    
     fclose(fptr);    
 }
 
@@ -27,20 +28,15 @@ void write_file(char *name){
 }
 
 int main(int argc, char **argv){
-    int i;
 
-    for(i=0; i<argc; i++){
-        printf("%d %s\n",i, argv[i]);
-    }
-
-    printf("argc: %d\n", argc);
-    if (argc != 4) {
-        fprintf(stderr,"Uso: %s <# escalonador> <trace file> <output file>\n",argv[0]);
+    if (argc < 3) {
+        fprintf(stderr,"Uso: ./ep1 <# escalonador> <trace file> <output file>\n");
+        fprintf(stderr,"Vai rodar um simulador de processos utilizando o escalonador <# escalonador> e os dados de <trace file>, os resultados serão salvos em <output file>\n");
         exit(1);
     }
-    /*
-    read_tracefile(argv[2]);
-    write_file(argv[3]);*/
+    
+    read_tracefile(argv[1]);
+    write_file(argv[2]);
 
     return 0;
 }

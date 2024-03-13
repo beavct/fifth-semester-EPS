@@ -49,8 +49,8 @@ void cd_command(char *path){
     chdir(&path[3]);
 
     /* printing current working directory */
-    char s[100];
-    printf("%s\n", getcwd(s, 100));    
+    /*char s[100];
+    printf("%s\n", getcwd(s, 100));    */
 }
 
 void rm_command(char *path){
@@ -75,45 +75,7 @@ void uname_command(void){
 
 }
 
-void ps_command(){
-
-    char *path = "/bin/ps";
-    char *argv[] = {"x", (char *)0};
-    /*char *envp[] = {"ok", (char *)0};    */
-
-    execve(path, argv, NULL);
-
-}
-
-void ls_command(){
-
-    char *path = "/bin/ls";
-    char *argv[] = {"--color=never", "-1t", (char *)0};
-    /*char *envp[] = {"ok", (char *)0};    */
-
-    execve(path, argv, NULL);        
-}
-
-void ep1_command(char *argv){
-
-    /* Pegar argumentos da string argv e separá-los */
-    char *ep1str = strtok(argv, " ");
-    char *escalonador = strtok(NULL, " ");
-    char *tracefile = strtok(NULL, " ");
-    char *outputfile = strtok(NULL, " ");
-
-    char *argv_ex[] = {ep1str, escalonador, tracefile, outputfile, (char *)0};
-
-    execve("./ep1", argv_ex, NULL);
-
-}
-
 void main_loop(){
-    /* Para verificar os comandos "cd" e "rm" */
-    char command1[3];
-    /* Para verificar o comando "ep1" */
-    char command2[6];
-
     static char *line_read = (char *)NULL;
 
     /* Initialize history */
@@ -121,67 +83,54 @@ void main_loop(){
 
     char *prompt = get_prompt();
 
-    /*while(fgets(buff, 259, stdin) != NULL){*/
     while((line_read = readline(prompt))){
 
         add_history(line_read);
 
-        /* Verifica se o que foi lido pelo fgets() tem "\n", se tiver, o remove*/
-        int buff_len = strlen(line_read);
-        if(line_read[buff_len - 1] == '\n') line_read[--buff_len] = 0;
-
-        strncpy(command1, line_read, 2);
-        command1[2] = '\0';
-
-        strncpy(command2, line_read, 5);
-        command2[5] = '\0';
+        char *firstArg = strtok(line_read, " ");
 
         /* Comandos internos */
-        if(!strcmp(command1, "cd")){
-
-            cd_command(line_read);
+        if(!strcmp(firstArg, "cd")){
+            
+            char* path = strtok(line_read, " ");
+            cd_command(path);
 
         }
-        else if(!strcmp(command1, "rm")){
+        else if(!strcmp(firstArg, "rm")){
 
-            rm_command(line_read);
+            char* path = strtok(line_read, " ");
+            rm_command(path);
         
         }
-        else if(!strcmp(line_read, "uname -a")){
+        else if(!strcmp(firstArg, "uname -a")){
 
             uname_command();
 
         }
-        else if(!strcmp(command2, "./ep1")){
-            int status;
-
-            if(fork() != 0)
-                waitpid(-1, &status, 0);
-            else
-                ep1_command(line_read);
-
-        }
-        else if(!strcmp(line_read, "/bin/ps a")){
-            int status;
-
-            if(fork() != 0)
-                waitpid(-1, &status, 0);
-            else
-                ps_command();
-
-
-        }
-        else if(!strcmp(line_read, "/bin/ls --color=never -1t")){
-            int status;
-
-            if(fork() != 0)
-                waitpid(-1, &status, 0);
-            else
-                ls_command();
-
-        }
         else{
-            printf("newsh: command not found: %s\n", line_read);
+            int status;
+
+            if(fork() != 0)
+                waitpid(-1, &status, 0);
+            else{
+                /*Pega os argumentos do comando*/
+                char *argv[256];
+                argv[0]=NULL;
+                int i=0;
+
+                argv[i]=strtok(NULL, " ");
+                while(argv[i]!= NULL){
+                    i++;
+                    argv[i]=strtok(NULL, " ");
+                }
+
+                int ret;
+
+                ret = execve(firstArg, argv, NULL);
+
+                if(ret == -1)
+                    printf("newsh: command not found: %s\n", firstArg);
+            }            
         }
 
         free(line_read);
