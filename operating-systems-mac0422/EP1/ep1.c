@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <time.h> /* clock() */
 #include <sched.h> /* CPU */
+#include <unistd.h> /* sleep() */
 #include "ep1.h"
 
 #define NUM_THREADS 1024
@@ -21,6 +22,8 @@ queue *p_queue;
 long cont_chances=0;
 /* Momento em que o código começou a ser executado */
 time_t init_time;
+/* Quantos processos foram finalizados */
+long fin_proc=0;
 
 void init_queue(){
     p_queue = (queue*)malloc(sizeof(queue));
@@ -28,21 +31,104 @@ void init_queue(){
     p_queue->q_size = 0;
 }
 
-int compare_STJ(const void* i, const void* j){ 
+int compare_SJF(const void* i, const void* j){ 
     process_info *pi = (process_info *)i;
     process_info *pj = (process_info *)j;
 
-    if(pi->dt > pj->dt){  
+    if(pi->t0 > pj->t0){  
         return 1;  
     }  
-    else if(pi->dt < pj->dt){  
+    else if(pi->t0 < pj->t0){  
         return -1;  
-    }  
+    }
+    else{
+        if(pi->dt > pj->dt){
+            return 1;
+        }
+        else if(pi->dt < pj->dt){
+            return -1;
+        }
+    }
     return 0;      
 }
 
 void esc_SJF(){
+    pthread_t threads[2];
+    int t=0;
+    pid_t childpid;
 
+    init_time = time(NULL);
+    
+    /* Thread que cuida da fila*/
+    if ((childpid = pthread_create(&threads[t], NULL, queue_SJF, NULL)) == 0) {
+        t++;
+    }
+    else{
+        fprintf(stderr,"pthread_create :(\n");
+        exit(1);
+    }
+
+
+    /* Simula o tempo do processo */
+    while(fin_proc != proc_info->p_quant){
+        //printf("entrou aq3\n");
+        if(p_queue->queue_head != NULL){
+            long aux = p_queue->queue_head->p_info->dt;
+
+            //printf("%s vai rodar\n", p_queue->queue_head->p_info->name);
+
+            time_t t0 = time(NULL);
+            sleep(aux);
+            time_t tf = time(NULL);
+            
+            strcpy(proc_end_info->processes[proc_end_info->quant].name, p_queue->queue_head->p_info->name);
+            proc_end_info->processes[proc_end_info->quant].tf = tf-init_time;
+            proc_end_info->processes[proc_end_info->quant].tr = tf-t0;
+            proc_end_info->quant++;
+
+            fin_proc++;
+            p_queue->queue_head= p_queue->queue_head->next;
+            cont_chances++;
+
+        }
+    }
+
+    /* Espera todas as threads terminarem */
+    for(long i = 0; i < t; i++) {
+        pthread_join(threads[i], NULL);
+    }
+}
+
+void *queue_SJF(){
+    for(int i=0; i<proc_info->p_quant; i++){
+        /* Enquanto o tempo ainda é menor do que o t0 do processo, espera*/
+        while(time(NULL) < init_time + proc_info->processes[i].t0){
+            
+        }
+
+        /* Adiciona o processo na fila de processos */
+        queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
+        new_node->p_info = &proc_info->processes[i];
+        new_node->next = NULL;
+
+        /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
+        if(p_queue->queue_head == NULL){
+            p_queue->queue_head = new_node;
+        }
+        /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
+        else{
+            queue_node *current = p_queue->queue_head;
+            while(current->next != NULL){
+                current = current->next;
+            }
+            current->next = new_node;   
+        }
+
+        /* Incrementamos o tamanho da fila */
+        p_queue->q_size++;       
+    }
+
+    return NULL;
 }
 
 void esc_RR(){
@@ -52,41 +138,6 @@ void esc_RR(){
 void esc_prior(){
 
 
-}
-
-time_t convertIntToTime(int seconds){
-    time_t currentTime = time(NULL);
-    struct tm *timeInfo = localtime(&currentTime);
-    timeInfo->tm_sec += seconds;
-    time_t convertedTime = mktime(timeInfo);
-
-    return convertedTime;
-}
-
-void *single_process(void *args){
-    thread_proc_args *args_aux = (thread_proc_args*)args;
-
-    printf("oie, %s\n", args_aux->proc_info->name);
-
-    time_t t0 = convertIntToTime(args_aux->proc_info->t0);
-
-    while (time(NULL) < t0) {
-        
-    }
-
-    printf("finalmente deu o t0, %s\n", args_aux->proc_info->name);
-
-    if(args_aux->esc==1){
-        printf("SJF, n fiz ainda :(\n");
-    }
-    else if(args_aux->esc==2){
-        printf("RR, n fiz ainda :(\n");
-    }
-    else if(args_aux->esc==3){
-        printf("esc. com priopridade, n fiz ainda :(\n");
-    }
-
-    return NULL;
 }
 
 void init_processes(){
@@ -162,7 +213,14 @@ void write_file(char *name){
 
     fptr = fopen(name, "w");
 
-    fprintf(fptr, "oiee\n");
+    //fprintf(fptr, "oiee\n");
+    if(proc_end_info->quant==0)
+        return;
+
+    for(int i=0; i<proc_end_info->quant; i++){
+        fprintf(fptr, "%s %d %d\n", proc_end_info->processes[i].name, proc_end_info->processes[i].tf, proc_end_info->processes[i].tr);
+    }
+    fprintf(fptr, "%ld\n", cont_chances);
 
     fclose(fptr);     
 }
@@ -175,8 +233,6 @@ int main(int argc, char **argv){
         fprintf(stderr,"Vai rodar um simulador de processos utilizando o escalonador <# escalonador> e os dados de <trace file>, os resultados serão salvos em <output file>\n");
         exit(1);
     }
-
-    init_time = time(NULL);
 
     init_processes();
     read_tracefile(argv[1]);
@@ -193,37 +249,20 @@ int main(int argc, char **argv){
     pthread_attr_init(&attr);
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
 
-    pthread_t threads[NUM_THREADS];
-    long t = 0;
-    pid_t childpid;
-
-    /* Cria uma thread para cada processo */
-    for(long i=0; i<proc_info->p_quant; i++){
-        thread_proc_args *args=(thread_proc_args*)malloc(sizeof(thread_proc_args));
-        if(args == NULL){
-            fprintf(stderr,"malloc :(\n");
-            exit(1);
-        }
-        args->proc_info = (process_info*)malloc(sizeof(process_info));
-
-        args->esc=esc;
-        args->proc_info=&(proc_info->processes[i]);
-
-        /* Pthread_create retorna 0 quando a thread é criada corretamente */  
-        if((childpid = pthread_create(&threads[t], NULL, single_process, args)) == 0){
-            /* Incrementa a quantidade de threads */
-            t++;
-        }      
-        else{
-            fprintf(stderr,"pthread_create :(\n");
-        }
+    if(esc==1){
+        /* Ordena os processos pelo t0 */
+        qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_SJF);
+        
+        esc_SJF();
+    }
+    else if(esc==2){
+        esc_RR();
+    }
+    else if(esc==3){
+        esc_prior();
     }
 
-    /* Espera todas as threads terminarem */
-    for(long i = 0; i < t; i++) {
-        pthread_join(threads[i], NULL);
-    }
-
+    printf("escreveu no arquivo\n");
     write_file(argv[2]);
 
     exit(0);

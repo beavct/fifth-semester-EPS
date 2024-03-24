@@ -27,9 +27,9 @@ typedef struct {
     /* No máx. 16 caracteres ASCII */
     char name[17];
     /* Instante em que o processo terminou sua execução */
-    double long tf;
+    int tf;
     /* Tempo "de relógio" que o processo levou para executar, ou seja, tf-t0 */    
-    double long tr;
+    int tr;
 }process_end_info;  
 
 /* Estrutura de dados que guarda as informações que serão gravadas no arquivo de saída*/
@@ -57,12 +57,14 @@ time_t convertIntToTime(int seconds);
 
 /* Escalonador Shortest Job First */
 void esc_SJF();
+/* Cuida da fila do SJF */
+void *queue_SJF();
 /* Escalonador Round-Robin */
 void esc_RR();
 /* Escalonador com prioridade (utiliza a deadline para definir a quant. de quantums dada a cada processo) */
 void esc_prior();
 /* Comparação utilizada para ordenar a fila SJF*/
-int compare_STJ(const void* i, const void* j);
+int compare_SJF(const void* i, const void* j);
 
 /* Nó da lista ligada circular */
 typedef struct queue_node{
@@ -88,8 +90,5 @@ typedef struct{
     /* Infos iniciais do processo */
     process_info *proc_info;
 }thread_proc_args;
-
-/* Funções para a thread individual de cada processo */
-void *single_process(void *args);
 
 
