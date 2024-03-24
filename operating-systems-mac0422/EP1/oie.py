@@ -1,1 +1,0 @@
-print("Olá caralho em PYTHON")

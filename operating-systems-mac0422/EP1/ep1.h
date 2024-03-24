@@ -1,8 +1,10 @@
 
+#include <time.h>
+
 /* ESTRUTURA DE DADOS BÁSICAS */
 
 /* Guarda as informações de cada processo (retiradas da tracefile) */
-typedef struct process{
+typedef struct process_info{
     /* No máx. 16 caracteres ASCII */
     char name[17];
     /* Instante de tempo até o qual o usuário gostaria que aquele processo terminasse */
@@ -11,15 +13,11 @@ typedef struct process{
     int t0;
     /* Quanto de tempo real dos núcleos de processamento deve ser destinado para aquele processo */
     int dt;
-    /*Utilizado para fila, próximo*/
-    struct process *next_p;
-    /*Utilizado para fila, anterior*/
-    struct process *ant_p;
-}process;
+}process_info;
 
 /*Estrutura de dados que guarda todos os processos*/
 typedef struct {
-    process *processes;
+    process_info *processes;
     int p_quant;
     int max;
 }processes_info;
@@ -52,8 +50,8 @@ void write_file(char *name);
 void init_processes();
 /* Realoca a estrutura infos iniciais de processos */
 void realloc_processes();
-/* Inicializa a fila, PRECISA DISSO ???? */
-void init_queue();
+/* Converte tempo em segundos (int) em time_t */
+time_t convertIntToTime(int seconds);
 
 /*ESCALONADORES*/
 
@@ -63,17 +61,35 @@ void esc_SJF();
 void esc_RR();
 /* Escalonador com prioridade (utiliza a deadline para definir a quant. de quantums dada a cada processo) */
 void esc_prior();
-/* Ordena a fila do Shortest Job First PRECISA DISSO ???*/
-void sort_SJF();
 /* Comparação utilizada para ordenar a fila SJF*/
 int compare_STJ(const void* i, const void* j);
 
-/*AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA*/
+/* Nó da lista ligada circular */
+typedef struct queue_node{
+    struct queue_node *next;
+    struct queue_node *ant;
+    process_info *p_info;
+}queue_node;   
 
+/* Estrutura de dados lista ligada circular (utilizada pelos escalonadores) */
 typedef struct {
-    process *queueHead;    
+    queue_node *queue_head;
+    int q_size;    
 }queue;
 
-/*typedef struct {
-    process *queueHead;
-}Round_Robin;*/
+/* Funções da lista ligada circular */
+/* Inicializa a fila que vai ser utilizada pelo escalonador*/
+void init_queue();
+
+/* Estrutura de argumento para as threads */
+typedef struct{
+    /* Escalonador escolhido */
+    int esc;
+    /* Infos iniciais do processo */
+    process_info *proc_info;
+}thread_proc_args;
+
+/* Funções para a thread individual de cada processo */
+void *single_process(void *args);
+
+

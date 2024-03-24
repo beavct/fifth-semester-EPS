@@ -1,5 +1,5 @@
 PP=gcc
-COMPFLAGS= -Wall -ansi -O2 -g
+COMPFLAGS= -Wall -pedantic -O2 -g
 #OTHERS= regexp.cpp
 
 ###################################################################################

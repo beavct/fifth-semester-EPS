@@ -1,23 +1,36 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h> /* quicksort, pode usar qsort da lib?*/
 #include <string.h> /* strtok*/
 #include <pthread.h>
+#include <time.h> /* clock() */
+#include <sched.h> /* CPU */
 #include "ep1.h"
 
+#define NUM_THREADS 1024
+
 /* Variáveis globais */
+
+/* Guarda as informações iniciais de cada processo */
 processes_info *proc_info;
+/* Guarda as informações finais de cada processo */
 processes_end_info *proc_end_info;
 queue *p_queue;
+/* Guarda a quantidade de mudanças de contexto */
+long cont_chances=0;
+/* Momento em que o código começou a ser executado */
+time_t init_time;
 
-/* PRECISA DESSA MERDA AQ ? */
 void init_queue(){
     p_queue = (queue*)malloc(sizeof(queue));
-    p_queue->queueHead = &proc_info->processes[0];
+    p_queue->queue_head = NULL;
+    p_queue->q_size = 0;
 }
 
 int compare_STJ(const void* i, const void* j){ 
-    process *pi = (process *)i;
-    process *pj = (process *)j;
+    process_info *pi = (process_info *)i;
+    process_info *pj = (process_info *)j;
 
     if(pi->dt > pj->dt){  
         return 1;  
@@ -26,26 +39,6 @@ int compare_STJ(const void* i, const void* j){
         return -1;  
     }  
     return 0;      
-}
-
-void sort_SJF(){
-
-    /* Quicksort*/
-    qsort(proc_info->processes, proc_info->p_quant, sizeof(process), compare_STJ);
-    p_queue->queueHead=&proc_info->processes[0];
-
-    int i;
-    for(i=0; i<proc_info->p_quant-1; i++){
-        proc_info->processes[i].next_p = &proc_info->processes[i+1];
-    }
-
-    /* Teste*/
-    printf("%d\n", proc_info->p_quant);
-    struct process *aux=p_queue->queueHead; 
-    while(aux!=NULL){
-        printf("%s %d %d %d\n", aux->name, aux->deadline, aux->t0, aux->dt);
-        aux=aux->next_p;
-    }
 }
 
 void esc_SJF(){
@@ -61,6 +54,41 @@ void esc_prior(){
 
 }
 
+time_t convertIntToTime(int seconds){
+    time_t currentTime = time(NULL);
+    struct tm *timeInfo = localtime(&currentTime);
+    timeInfo->tm_sec += seconds;
+    time_t convertedTime = mktime(timeInfo);
+
+    return convertedTime;
+}
+
+void *single_process(void *args){
+    thread_proc_args *args_aux = (thread_proc_args*)args;
+
+    printf("oie, %s\n", args_aux->proc_info->name);
+
+    time_t t0 = convertIntToTime(args_aux->proc_info->t0);
+
+    while (time(NULL) < t0) {
+        
+    }
+
+    printf("finalmente deu o t0, %s\n", args_aux->proc_info->name);
+
+    if(args_aux->esc==1){
+        printf("SJF, n fiz ainda :(\n");
+    }
+    else if(args_aux->esc==2){
+        printf("RR, n fiz ainda :(\n");
+    }
+    else if(args_aux->esc==3){
+        printf("esc. com priopridade, n fiz ainda :(\n");
+    }
+
+    return NULL;
+}
+
 void init_processes(){
     proc_info = (processes_info*)malloc(sizeof(processes_info));
     proc_info->p_quant=0;
@@ -70,7 +98,7 @@ void init_processes(){
 void realloc_processes(){
     proc_info->max*=2;
 
-    process *p_aux = (process*)malloc(sizeof(process)*proc_info->max);
+    process_info *p_aux = (process_info*)malloc(sizeof(process_info)*proc_info->max);
     int i;
 
     for(i=0; i<proc_info->p_quant; i++){
@@ -91,7 +119,7 @@ void read_tracefile(char *name){
     proc_info->max=2;
 
 
-    proc_info->processes = (process*)malloc(sizeof(process)*proc_info->max);
+    proc_info->processes = (process_info*)malloc(sizeof(process_info)*proc_info->max);
 
     while(fgets(myString, 1024, fptr) != NULL){
         if(proc_info->p_quant==proc_info->max){
@@ -110,10 +138,6 @@ void read_tracefile(char *name){
 
         aux=strtok(NULL, " ");
         proc_info->processes[proc_info->p_quant].dt = atoi(aux);
-
-        /*Ponteiros que vão utilizanos na fila*/
-        proc_info->processes[proc_info->p_quant].next_p = NULL;
-        proc_info->processes[proc_info->p_quant].ant_p = NULL;
 
         proc_info->p_quant++;
     }
@@ -152,23 +176,55 @@ int main(int argc, char **argv){
         exit(1);
     }
 
+    init_time = time(NULL);
+
     init_processes();
     read_tracefile(argv[1]);
     init_queue();
 
     int esc=atoi(argv[0]);
-    if(esc==1){
-        sort_SJF();
 
+    /* Configs para rodar as threads no mesmo núcleo */
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(0, &cpuset);
+
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+
+    pthread_t threads[NUM_THREADS];
+    long t = 0;
+    pid_t childpid;
+
+    /* Cria uma thread para cada processo */
+    for(long i=0; i<proc_info->p_quant; i++){
+        thread_proc_args *args=(thread_proc_args*)malloc(sizeof(thread_proc_args));
+        if(args == NULL){
+            fprintf(stderr,"malloc :(\n");
+            exit(1);
+        }
+        args->proc_info = (process_info*)malloc(sizeof(process_info));
+
+        args->esc=esc;
+        args->proc_info=&(proc_info->processes[i]);
+
+        /* Pthread_create retorna 0 quando a thread é criada corretamente */  
+        if((childpid = pthread_create(&threads[t], NULL, single_process, args)) == 0){
+            /* Incrementa a quantidade de threads */
+            t++;
+        }      
+        else{
+            fprintf(stderr,"pthread_create :(\n");
+        }
     }
-    else if(esc==2){
-        printf("RR, n fiz ainda :(\n");
-    }
-    else if(esc==3){
-        printf("esc. com priopridade, n fiz ainda :(\n");
+
+    /* Espera todas as threads terminarem */
+    for(long i = 0; i < t; i++) {
+        pthread_join(threads[i], NULL);
     }
 
     write_file(argv[2]);
 
-    return 0;
+    exit(0);
 }
