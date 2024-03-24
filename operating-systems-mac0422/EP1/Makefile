@@ -19,5 +19,5 @@ newsh: ${NEWSH_OBJ}
 	@rm -rf *.o
 
 ep1: ${EP1_OBJ}
-	${PP} ${COMPFLAGS} -o ep1 ep1.c
+	${PP} ${COMPFLAGS} -o ep1 ep1.c -lpthread 
 	@rm -rf *.o

@@ -102,7 +102,7 @@ void main_loop(){
             rm_command(path);
         
         }
-        else if(!strcmp(firstArg, "uname -a")){
+        else if(!strcmp(firstArg, "uname")){
 
             uname_command();
 
