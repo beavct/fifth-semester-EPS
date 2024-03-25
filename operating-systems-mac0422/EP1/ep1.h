@@ -1,6 +1,4 @@
 
-#include <time.h>
-
 /* ESTRUTURA DE DADOS BÁSICAS */
 
 /* Guarda as informações de cada processo (retiradas da tracefile) */
@@ -13,6 +11,8 @@ typedef struct process_info{
     int t0;
     /* Quanto de tempo real dos núcleos de processamento deve ser destinado para aquele processo */
     int dt;
+    /* Instante que o processo começou a ser executado (utilizado pelo RR e esc. por prior)*/
+    int t0_aux;
 }process_info;
 
 /*Estrutura de dados que guarda todos os processos*/
@@ -48,10 +48,12 @@ void read_tracefile(char *name);
 void write_file(char *name);
 /*Aloca estrutura que guarda as infos iniciais de cada processo*/
 void init_processes();
+/* Inicializa a fila que vai ser utilizada pelo escalonador*/
+void init_queue();
 /* Realoca a estrutura infos iniciais de processos */
 void realloc_processes();
-/* Converte tempo em segundos (int) em time_t */
-time_t convertIntToTime(int seconds);
+/* Comparação dos nomes dos processos para salvar em ordem no arquivo */
+int compare_str(const void* i, const void* j);
 
 /*ESCALONADORES*/
 
@@ -61,10 +63,14 @@ void esc_SJF();
 void *queue_SJF();
 /* Escalonador Round-Robin */
 void esc_RR();
+/* Cuida da fila do RR */
+void *queue_RR();
 /* Escalonador com prioridade (utiliza a deadline para definir a quant. de quantums dada a cada processo) */
 void esc_prior();
 /* Comparação utilizada para ordenar a fila SJF*/
 int compare_SJF(const void* i, const void* j);
+/* Comparação somente pelo t0, utilizada pelo RR e esc. por prior.*/
+int compare_normal(const void* i, const void* j);
 
 /* Nó da lista ligada circular */
 typedef struct queue_node{
@@ -78,17 +84,4 @@ typedef struct {
     queue_node *queue_head;
     int q_size;    
 }queue;
-
-/* Funções da lista ligada circular */
-/* Inicializa a fila que vai ser utilizada pelo escalonador*/
-void init_queue();
-
-/* Estrutura de argumento para as threads */
-typedef struct{
-    /* Escalonador escolhido */
-    int esc;
-    /* Infos iniciais do processo */
-    process_info *proc_info;
-}thread_proc_args;
-
 

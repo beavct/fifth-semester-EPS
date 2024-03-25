@@ -23,12 +23,39 @@ long cont_chances=0;
 /* Momento em que o código começou a ser executado */
 time_t init_time;
 /* Quantos processos foram finalizados */
-long fin_proc=0;
+int fin_proc=0;
+/* Quantum do Round-Robin */
+int q_RR = 3;
+/* Quantum do escalonamento com prioridade */
+int q_prior = 7;
+/* Mutex */
+pthread_mutex_t mutex;
 
 void init_queue(){
     p_queue = (queue*)malloc(sizeof(queue));
     p_queue->queue_head = NULL;
     p_queue->q_size = 0;
+}
+
+int compare_str(const void* i, const void* j){ 
+    process_info *pi = (process_info *)i;
+    process_info *pj = (process_info *)j;
+
+    if(pi->t0 > pj->t0){  
+        return 1;  
+    }  
+    else if(pi->t0 < pj->t0){  
+        return -1;  
+    }
+    else{
+        if(pi->dt > pj->dt){
+            return 1;
+        }
+        else if(pi->dt < pj->dt){
+            return -1;
+        }
+    }
+    return 0;      
 }
 
 int compare_SJF(const void* i, const void* j){ 
@@ -52,13 +79,25 @@ int compare_SJF(const void* i, const void* j){
     return 0;      
 }
 
+int compare_normal(const void* i, const void* j){ 
+    process_info *pi = (process_info *)i;
+    process_info *pj = (process_info *)j;
+
+    if(pi->t0 > pj->t0){  
+        return 1;  
+    }  
+    else if(pi->t0 < pj->t0){  
+        return -1;  
+    }
+    return 0;      
+}
+
 void esc_SJF(){
     pthread_t threads[2];
     int t=0;
     pid_t childpid;
 
-    init_time = time(NULL);
-    
+
     /* Thread que cuida da fila*/
     if ((childpid = pthread_create(&threads[t], NULL, queue_SJF, NULL)) == 0) {
         t++;
@@ -68,6 +107,7 @@ void esc_SJF(){
         exit(1);
     }
 
+    init_time = time(NULL);
 
     /* Simula o tempo do processo */
     while(fin_proc != proc_info->p_quant){
@@ -93,10 +133,10 @@ void esc_SJF(){
         }
     }
 
+    cont_chances--;
+
     /* Espera todas as threads terminarem */
-    for(long i = 0; i < t; i++) {
-        pthread_join(threads[i], NULL);
-    }
+    pthread_join(threads[0], NULL);
 }
 
 void *queue_SJF(){
@@ -132,7 +172,142 @@ void *queue_SJF(){
 }
 
 void esc_RR(){
+    pthread_t threads[2];
+    int t=0;
+    pid_t childpid;
 
+    pthread_mutex_init(&mutex, NULL);
+
+    /* Thread que cuida da fila*/
+    if ((childpid = pthread_create(&threads[t], NULL, queue_RR, NULL)) == 0) {
+        t++;
+    }
+    else{
+        fprintf(stderr,"pthread_create :(\n");
+        exit(1);
+    }
+
+    init_time = time(NULL);
+
+    /* Simula o tempo do processo */
+    while(fin_proc != proc_info->p_quant){
+
+        if(p_queue->queue_head != NULL){
+            long aux_dt = p_queue->queue_head->p_info->dt;
+
+            //printf("%s vai rodar\n", p_queue->queue_head->p_info->name);
+
+            time_t t0 = time(NULL);
+
+            int t_aux;
+
+            if(aux_dt < q_RR)
+                t_aux=aux_dt;
+            else 
+                t_aux = q_RR;
+
+            sleep(t_aux);
+            time_t tf = time(NULL);
+
+            /* Se o processo foi executado pela primeira vez, salvamos o t0 em que começou*/
+            if(p_queue->queue_head->p_info->t0_aux==-1)
+                p_queue->queue_head->p_info->t0_aux=t0;
+
+            /* Atualizamos quanto tempo falta para o processo terminar */
+            p_queue->queue_head->p_info->dt -= t_aux;
+
+            /* Se o processo terminou, salvamos suas informações no arquivo de saída e o tiramos da fila*/
+            if(p_queue->queue_head->p_info->dt == 0){
+                /* Salvando as informações no arquivo */
+                strcpy(proc_end_info->processes[proc_end_info->quant].name, p_queue->queue_head->p_info->name);
+                proc_end_info->processes[proc_end_info->quant].tf = tf-init_time;
+                proc_end_info->processes[proc_end_info->quant].tr = tf-p_queue->queue_head->p_info->t0_aux;
+                proc_end_info->quant++;
+
+                fin_proc++;
+
+                pthread_mutex_lock(&mutex);
+
+                /* Removendo o processo da fila ligada */
+                if(p_queue->q_size == 1){
+                    p_queue->queue_head = NULL;
+                    //p_queue->queue_head->next=NULL;
+                    //p_queue->queue_head->ant=NULL;
+                }
+                else{
+                    queue_node *q_aux1 = p_queue->queue_head->ant;
+                    queue_node *q_aux2 = p_queue->queue_head->next;
+
+                    q_aux1->next = q_aux2;
+                    q_aux2->ant = q_aux1;
+
+                }
+
+                p_queue->q_size--;
+
+                pthread_mutex_unlock(&mutex);
+
+            }
+
+            pthread_mutex_lock(&mutex);
+            
+            if(p_queue->queue_head!=NULL)
+                p_queue->queue_head= p_queue->queue_head->next;
+
+            /* Se a fila só tem um processo, então não conta a mudança de contexto*/
+            if(p_queue->q_size>1)
+                cont_chances++;
+
+            pthread_mutex_unlock(&mutex);
+        }
+    }
+
+    cont_chances--;
+
+    /* Espera todas as threads terminarem */
+    pthread_join(threads[0], NULL);
+}
+
+void *queue_RR(){
+
+    for(int i=0; i<proc_info->p_quant; i++){
+        /* Enquanto o tempo ainda é menor do que o t0 do processo, espera*/
+        while(time(NULL) < init_time + proc_info->processes[i].t0){
+            
+        }
+
+        /* Adiciona o processo na fila de processos */
+        queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
+        new_node->p_info = &proc_info->processes[i];
+        new_node->next = NULL;
+        new_node->ant = NULL;
+
+        pthread_mutex_lock(&mutex);
+
+        /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
+        if(p_queue->queue_head == NULL){
+            p_queue->queue_head = new_node;
+            p_queue->queue_head->ant = new_node;
+            p_queue->queue_head->next = new_node;
+        }
+        /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
+        else{
+            queue_node *head = p_queue->queue_head;
+            queue_node *head_ant = head->ant;
+
+            head_ant->next = new_node;
+            new_node->ant = head_ant;
+            head->ant = new_node;
+            new_node->next = head;
+        }
+
+        /* Incrementamos o tamanho da fila */
+        p_queue->q_size++;   
+
+        pthread_mutex_unlock(&mutex);    
+    }    
+
+    return NULL;
 }
 
 void esc_prior(){
@@ -189,6 +364,9 @@ void read_tracefile(char *name){
 
         aux=strtok(NULL, " ");
         proc_info->processes[proc_info->p_quant].dt = atoi(aux);
+
+        /* Inicializa com -1 */
+        proc_info->processes[proc_info->p_quant].t0_aux = -1;
 
         proc_info->p_quant++;
     }
@@ -250,15 +428,21 @@ int main(int argc, char **argv){
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
 
     if(esc==1){
-        /* Ordena os processos pelo t0 */
+        /* Ordena os processos pelo t0 e dt*/
         qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_SJF);
         
         esc_SJF();
     }
     else if(esc==2){
+        /* Ordena os processos pelo t0*/
+        qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_normal);
+
         esc_RR();
     }
     else if(esc==3){
+        /* Ordena os processos pelo t0*/
+        qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_normal);
+
         esc_prior();
     }
 

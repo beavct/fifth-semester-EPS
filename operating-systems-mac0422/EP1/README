@@ -5,9 +5,30 @@ E-mail: beatrizvianacosta@usp.br
 
 
 DESCRIÇÃO:
+O presente trabalho apresenta duas partes. A primeira trata-se de um shell para permitir a interação do usuário com o sistema operacional.
+Nesse shell é possível utilizar os três comandos embutidos (internos) "cd", "rm" e "uname -a". Além disso, também é possível realizar a invocação externa de executáveis.
+A segunda parte do exercício-programa trata-se de um simulador de processos que possui três algoritmos escalonadores de processos diferentes, o Shortest Job First, Round-Robin e Escalonamento com prioridade, de acordo com a escolha do usuário.
+Além disso, o programa também acompanha 3 arquivos de trace utilizados para os experimentos relatados na apresentação.
 
 
 COMO EXECUTAR:
+Para a compilação dos dois programas, basta executar o seguinte comando no terminal:
+~ make
+Caso haja a necessidade de se compilar apenas um destes, utilizar o seguinte comando:
+~ make <newsh / ep1>
+
+Para executar o newsh basta utilizar o seguinte comando:
+~ ./newsh
+E assim é possível utilizar os comandos internos solicitados no enunciado e também realizar a execução de outros programas.
+Além disso, é possível navegar pelo histórico de comandos utilizados com as setas "para cima" e "para baixo".
+
+Já para executar o simulador de processos é necessário estar executando o newsh e utilizar o seguinte padrão:
+~ ./ep1 <# escalonador> <tracefile> <output file>
+Onde os escalonadores disponíveis são:
+1 - Shortest Job First;
+2 - Round Robin;
+3 - Escalonador com prioridade.
+O programa irá simular o processo utilizando o escalonador informado e também as informações contidas no arquivo de trace, os resultados da simulação ficarão disponíveis no arquivo de saída indicado.
 
 
 DEPENDÊNCIAS: (VERIFICAR)
@@ -15,3 +36,4 @@ Sistema Operacional: Manjaro Linux 23.0.4 Uranos
 CPU: 12th Gen Intel(R) Core(TM) i7-1255U
 gcc (GCC) 13.2.1 20230801
 GNU Make 4.4.1
+readline 8.2.010-1
