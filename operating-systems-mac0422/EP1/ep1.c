@@ -83,6 +83,7 @@ void esc_SJF(){
     int t=0;
     pid_t childpid;
 
+    pthread_mutex_init(&mutex, NULL);
     init_time = time(NULL);
 
     /* Thread que cuida da fila*/
@@ -104,14 +105,20 @@ void esc_SJF(){
             sleep(aux);
             time_t tf = time(NULL);
 
+            printf("rodando %s\n", p_queue->queue_head->p_info->name);
+
             strcpy(proc_end_info->processes[proc_end_info->quant].name, p_queue->queue_head->p_info->name);
             proc_end_info->processes[proc_end_info->quant].tf = tf-init_time;
             proc_end_info->processes[proc_end_info->quant].tr = tf-t0;
             proc_end_info->quant++;
 
             fin_proc++;
+
+            pthread_mutex_lock(&mutex);
              
             p_queue->queue_head= p_queue->queue_head->next;
+
+            pthread_mutex_unlock(&mutex);
 
             cont_chances++;
         }
@@ -140,11 +147,27 @@ void *queue_SJF(){
         }
         /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
         else{
-            queue_node *current = p_queue->queue_head;
-            while(current->next != NULL){
-                current = current->next;
+            pthread_mutex_lock(&mutex);
+
+            if(p_queue->queue_head->p_info->t0 == new_node->p_info->t0 && p_queue->queue_head->p_info->dt > new_node->p_info->dt){
+                new_node->next = p_queue->queue_head;
+                p_queue->queue_head = new_node;
+
             }
-            current->next = new_node;   
+            else{
+                queue_node *current = p_queue->queue_head;
+                while(current->next != NULL && current->next->p_info->t0 <= new_node->p_info->t0){
+                    if(current->next->p_info->t0 == new_node->p_info->t0 && current->next->p_info->dt > new_node->p_info->dt)
+                        break;
+
+                    current = current->next;
+                }
+                new_node->next = current->next;
+                current->next = new_node;  
+            }
+
+            pthread_mutex_unlock(&mutex);
+
         }
         /* Incrementamos o tamanho da fila */
         p_queue->q_size++;       
@@ -608,7 +631,7 @@ int main(int argc, char **argv){
 
     if(esc==1){
         /* Ordena os processos pelo t0 e dt*/
-        qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_SJF);
+        qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_normal);
         
         esc_SJF();
     }
