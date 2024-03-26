@@ -13,6 +13,8 @@ typedef struct process_info{
     int dt;
     /* Instante que o processo começou a ser executado (utilizado pelo RR e esc. por prior)*/
     int t0_aux;
+    /* Prioridade que será utilizada pelo escalonador com prioridade */ 
+    int prior;
 }process_info;
 
 /*Estrutura de dados que guarda todos os processos*/
@@ -67,15 +69,23 @@ void esc_RR();
 void *queue_RR();
 /* Escalonador com prioridade (utiliza a deadline para definir a quant. de quantums dada a cada processo) */
 void esc_prior();
+/* Cuida da fila do escalonador com prioridade */
+void *queue_prior();
+/* Calcula a prioridade do processo, utilizada pelo escalonador com prioridade*/
+int calc_prior(int deadline, int dt);
+/* Ordena a fila de prioridades */
+int compare_prior(const void* i, const void* j);
+/* Ordena a fila de prioridades do escalonador por prioridade*/
+void sort_prior();
 /* Comparação utilizada para ordenar a fila SJF*/
 int compare_SJF(const void* i, const void* j);
 /* Comparação somente pelo t0, utilizada pelo RR e esc. por prior.*/
 int compare_normal(const void* i, const void* j);
 
 /* Nó da lista ligada circular */
-typedef struct queue_node{
-    struct queue_node *next;
-    struct queue_node *ant;
+typedef struct q_node{
+    struct q_node *next;
+    struct q_node *ant;
     process_info *p_info;
 }queue_node;   
 

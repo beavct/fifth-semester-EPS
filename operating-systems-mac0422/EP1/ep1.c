@@ -1,4 +1,5 @@
-#define _GNU_SOURCE
+// Remove duplicate definition of _GNU_SOURCE macro
+#define _GNU_SOURCE 
 
 #include <stdio.h>
 #include <stdlib.h> /* quicksort, pode usar qsort da lib?*/
@@ -9,7 +10,10 @@
 #include <unistd.h> /* sleep() */
 #include "ep1.h"
 
-#define NUM_THREADS 1024
+/* Quantum do Round-Robin */
+#define q_RR 3
+/* Quantum do Escalonamento por prioridade */
+#define q_prior 3
 
 /* Variáveis globais */
 
@@ -24,10 +28,6 @@ long cont_chances=0;
 time_t init_time;
 /* Quantos processos foram finalizados */
 int fin_proc=0;
-/* Quantum do Round-Robin */
-int q_RR = 3;
-/* Quantum do escalonamento com prioridade */
-int q_prior = 7;
 /* Mutex */
 pthread_mutex_t mutex;
 
@@ -38,24 +38,10 @@ void init_queue(){
 }
 
 int compare_str(const void* i, const void* j){ 
-    process_info *pi = (process_info *)i;
-    process_info *pj = (process_info *)j;
+    process_end_info *pi = (process_end_info *)i;
+    process_end_info *pj = (process_end_info *)j;
 
-    if(pi->t0 > pj->t0){  
-        return 1;  
-    }  
-    else if(pi->t0 < pj->t0){  
-        return -1;  
-    }
-    else{
-        if(pi->dt > pj->dt){
-            return 1;
-        }
-        else if(pi->dt < pj->dt){
-            return -1;
-        }
-    }
-    return 0;      
+    return strcmp(pi->name, pj->name);
 }
 
 int compare_SJF(const void* i, const void* j){ 
@@ -92,11 +78,23 @@ int compare_normal(const void* i, const void* j){
     return 0;      
 }
 
+int compare_prior(const void* i, const void* j){
+    const queue_node* node_a = *(const queue_node**)i;
+    const queue_node* node_b = *(const queue_node**)j;
+
+    if(node_a->p_info->prior < node_b->p_info->prior)
+        return 1;
+    else if(node_a->p_info->prior > node_b->p_info->prior) 
+        return -1;
+    return 0;
+}
+
 void esc_SJF(){
     pthread_t threads[2];
     int t=0;
     pid_t childpid;
 
+    init_time = time(NULL);
 
     /* Thread que cuida da fila*/
     if ((childpid = pthread_create(&threads[t], NULL, queue_SJF, NULL)) == 0) {
@@ -107,15 +105,11 @@ void esc_SJF(){
         exit(1);
     }
 
-    init_time = time(NULL);
 
     /* Simula o tempo do processo */
     while(fin_proc != proc_info->p_quant){
-        //printf("entrou aq3\n");
         if(p_queue->queue_head != NULL){
             long aux = p_queue->queue_head->p_info->dt;
-
-            //printf("%s vai rodar\n", p_queue->queue_head->p_info->name);
 
             time_t t0 = time(NULL);
             sleep(aux);
@@ -127,13 +121,12 @@ void esc_SJF(){
             proc_end_info->quant++;
 
             fin_proc++;
+             
             p_queue->queue_head= p_queue->queue_head->next;
-            cont_chances++;
 
+            cont_chances++;
         }
     }
-
-    cont_chances--;
 
     /* Espera todas as threads terminarem */
     pthread_join(threads[0], NULL);
@@ -177,6 +170,7 @@ void esc_RR(){
     pid_t childpid;
 
     pthread_mutex_init(&mutex, NULL);
+    init_time = time(NULL);
 
     /* Thread que cuida da fila*/
     if ((childpid = pthread_create(&threads[t], NULL, queue_RR, NULL)) == 0) {
@@ -187,15 +181,11 @@ void esc_RR(){
         exit(1);
     }
 
-    init_time = time(NULL);
-
     /* Simula o tempo do processo */
     while(fin_proc != proc_info->p_quant){
 
         if(p_queue->queue_head != NULL){
             long aux_dt = p_queue->queue_head->p_info->dt;
-
-            //printf("%s vai rodar\n", p_queue->queue_head->p_info->name);
 
             time_t t0 = time(NULL);
 
@@ -209,6 +199,7 @@ void esc_RR(){
             sleep(t_aux);
             time_t tf = time(NULL);
 
+
             /* Se o processo foi executado pela primeira vez, salvamos o t0 em que começou*/
             if(p_queue->queue_head->p_info->t0_aux==-1)
                 p_queue->queue_head->p_info->t0_aux=t0;
@@ -216,6 +207,10 @@ void esc_RR(){
             /* Atualizamos quanto tempo falta para o processo terminar */
             p_queue->queue_head->p_info->dt -= t_aux;
 
+            /* Se a fila só tem um processo, então não conta a mudança de contexto*/
+            if(p_queue->q_size > 1)
+                cont_chances++;    
+        
             /* Se o processo terminou, salvamos suas informações no arquivo de saída e o tiramos da fila*/
             if(p_queue->queue_head->p_info->dt == 0){
                 /* Salvando as informações no arquivo */
@@ -231,8 +226,6 @@ void esc_RR(){
                 /* Removendo o processo da fila ligada */
                 if(p_queue->q_size == 1){
                     p_queue->queue_head = NULL;
-                    //p_queue->queue_head->next=NULL;
-                    //p_queue->queue_head->ant=NULL;
                 }
                 else{
                     queue_node *q_aux1 = p_queue->queue_head->ant;
@@ -250,19 +243,16 @@ void esc_RR(){
             }
 
             pthread_mutex_lock(&mutex);
-            
-            if(p_queue->queue_head!=NULL)
-                p_queue->queue_head= p_queue->queue_head->next;
 
-            /* Se a fila só tem um processo, então não conta a mudança de contexto*/
-            if(p_queue->q_size>1)
-                cont_chances++;
+            queue_node *node_aux = p_queue->queue_head;
+            
+            if(node_aux!=NULL){
+                p_queue->queue_head= p_queue->queue_head->next;
+            }
 
             pthread_mutex_unlock(&mutex);
         }
     }
-
-    cont_chances--;
 
     /* Espera todas as threads terminarem */
     pthread_join(threads[0], NULL);
@@ -311,8 +301,212 @@ void *queue_RR(){
 }
 
 void esc_prior(){
+    pthread_t threads[2];
+    int t=0;
+    pid_t childpid;
+
+    pthread_mutex_init(&mutex, NULL);
+    init_time = time(NULL);
+
+    /* Thread que cuida da fila*/
+    if ((childpid = pthread_create(&threads[t], NULL, queue_prior, NULL)) == 0) {
+        t++;
+    }
+    else{
+        fprintf(stderr,"pthread_create :(\n");
+        exit(1);
+    }
+
+    /* Simula o tempo do processo */
+    while(fin_proc != proc_info->p_quant){
+
+        if(p_queue->queue_head != NULL){
+            long aux_dt = p_queue->queue_head->p_info->dt;
+
+            time_t t0 = time(NULL);
+
+            int t_aux;
+
+            if(aux_dt < q_prior)
+                t_aux=aux_dt;
+            else 
+                t_aux = q_prior;
+
+            sleep(t_aux);
+            time_t tf = time(NULL);
 
 
+            printf("%s no instante %ld com prioridade %d\n", p_queue->queue_head->p_info->name, t0-init_time, p_queue->queue_head->p_info->prior);
+
+            /* Se o processo foi executado pela primeira vez, salvamos o t0 em que começou*/
+            if(p_queue->queue_head->p_info->t0_aux==-1)
+                p_queue->queue_head->p_info->t0_aux=t0;
+
+            /* Atualizamos quanto tempo falta para o processo terminar */
+            p_queue->queue_head->p_info->dt -= t_aux;
+            
+            /* Se a fila só tem um processo, então não conta a mudança de contexto*/
+            if(p_queue->q_size > 1)
+                cont_chances++;  
+
+            pthread_mutex_lock(&mutex);
+
+            /* Se o processo terminou, salvamos suas informações no arquivo de saída e o tiramos da fila*/
+            if(p_queue->queue_head->p_info->dt == 0){
+                /* Salvando as informações no arquivo */
+                strcpy(proc_end_info->processes[proc_end_info->quant].name, p_queue->queue_head->p_info->name);
+                proc_end_info->processes[proc_end_info->quant].tf = tf-init_time;
+                proc_end_info->processes[proc_end_info->quant].tr = tf-p_queue->queue_head->p_info->t0_aux;
+                proc_end_info->quant++;
+
+                fin_proc++;
+
+                /* Removendo o processo da fila ligada */
+                if(p_queue->q_size == 1){
+                    p_queue->queue_head = NULL;
+                }
+                else{
+                    queue_node *q_aux1 = p_queue->queue_head->ant;
+                    queue_node *q_aux2 = p_queue->queue_head->next;
+
+                    q_aux1->next = q_aux2;
+                    q_aux2->ant = q_aux1;
+
+                    /* Atualiza a cabeça da lista */
+                    printf("ALO!\n");
+                    p_queue->queue_head=q_aux2;
+
+                }
+
+                p_queue->q_size--;
+
+
+            }
+            /* Se o processo não terminou, precisa atualizar a prioridade e arrumar a fila*/
+            else{
+                p_queue->queue_head->p_info->prior = calc_prior(p_queue->queue_head->p_info->deadline, p_queue->queue_head->p_info->dt);
+
+                sort_prior();
+            }
+            
+            pthread_mutex_unlock(&mutex);
+
+            /*pthread_mutex_lock(&mutex);
+            printf("TESTE1\n");
+            queue_node *aux = p_queue->queue_head;
+            int flag=1;
+
+            while(aux != p_queue->queue_head || flag){
+                printf("%s   %d | ", aux->p_info->name, aux->p_info->prior);
+                aux=aux->next;
+                flag=0;
+            }
+            printf("\n\n");
+
+            pthread_mutex_unlock(&mutex);*/
+        }
+    }
+    cont_chances--;
+
+    /* Espera todas as threads terminarem */
+    pthread_join(threads[0], NULL);    
+}
+
+void sort_prior() {
+    queue_node *atu = p_queue->queue_head;
+    queue_node *aux = p_queue->queue_head;
+
+    /* Encontra a posição certa pro processo em relação ao seu novo valor de prioridade */
+    while (aux != NULL && aux->next != atu && aux->next->p_info->prior <= atu->p_info->prior) {
+        aux = aux->next;
+    }
+
+    if(aux != atu){
+        p_queue->queue_head = p_queue->queue_head->next;
+
+        /*Remove o processo da posição atual */
+        atu->ant->next = atu->next;
+        atu->next->ant = atu->ant;
+
+        /* Coloca o processo na posição certa */
+        aux->next->ant = atu;
+        atu->next = aux->next;
+        atu->ant = aux;
+        aux->next = atu;
+
+    }
+
+}
+
+void *queue_prior(){
+
+    for(int i=0; i<proc_info->p_quant; i++){
+        /* Enquanto o tempo ainda é menor do que o t0 do processo, espera*/
+        while(time(NULL) < init_time + proc_info->processes[i].t0){
+            
+        }
+
+        /* Adiciona o processo na fila de processos */
+        queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
+        new_node->p_info = &proc_info->processes[i];
+        new_node->next = NULL;
+        new_node->ant = NULL;
+        new_node->p_info->prior = calc_prior(proc_info->processes[i].deadline, proc_info->processes[i].dt);
+
+        printf("adicionando %s com prioridade %d\n", new_node->p_info->name, new_node->p_info->prior);
+
+        pthread_mutex_lock(&mutex);
+
+        /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
+        if(p_queue->queue_head == NULL){
+            p_queue->queue_head = new_node;
+            p_queue->queue_head->ant = new_node;
+            p_queue->queue_head->next = new_node;
+        }
+        /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
+        else{
+            queue_node *head = p_queue->queue_head;
+            queue_node *current = p_queue->queue_head;
+
+            /* Maior prioridade: -20, menor prioridade: +19*/
+            while(current->next != head && current->next != NULL && current->next->p_info->prior <= new_node->p_info->prior){
+                current=current->next;
+            }
+
+            queue_node *aux = current->next;
+            current->next = new_node;
+            new_node->ant = current;
+            new_node->next = aux;
+            aux->ant = new_node;
+
+        }
+
+        /* Incrementamos o tamanho da fila */
+        p_queue->q_size++;   
+
+        pthread_mutex_unlock(&mutex);   
+
+    }    
+
+    return NULL;
+}
+
+int calc_prior(int deadline, int dt){
+    int prior;
+
+    if(deadline - (time(NULL)-init_time) > 0 && p_queue->q_size > 0)
+        prior = p_queue->queue_head->p_info->prior + (p_queue->q_size/dt)*(deadline - (time(NULL)-init_time));
+    else if(deadline - (time(NULL)-init_time) <= 0 && p_queue->q_size > 0)
+        prior = p_queue->queue_head->p_info->prior - (deadline - (time(NULL)-init_time))/p_queue->q_size;
+    else
+        prior = 0;
+
+    if(prior>19)    
+        return 19;
+    else if(prior< -20)
+        return -20;
+
+    return prior;
 }
 
 void init_processes(){
@@ -365,8 +559,10 @@ void read_tracefile(char *name){
         aux=strtok(NULL, " ");
         proc_info->processes[proc_info->p_quant].dt = atoi(aux);
 
-        /* Inicializa com -1 */
+        /* Inicializa t0_aux com -1 */
         proc_info->processes[proc_info->p_quant].t0_aux = -1;
+        /* Inicializa a prioridade com 0 */
+        proc_info->processes[proc_info->p_quant].prior = 0;
 
         proc_info->p_quant++;
     }
@@ -391,9 +587,10 @@ void write_file(char *name){
 
     fptr = fopen(name, "w");
 
-    //fprintf(fptr, "oiee\n");
     if(proc_end_info->quant==0)
         return;
+
+    qsort(proc_end_info->processes, proc_end_info->quant, sizeof(process_end_info), compare_str);
 
     for(int i=0; i<proc_end_info->quant; i++){
         fprintf(fptr, "%s %d %d\n", proc_end_info->processes[i].name, proc_end_info->processes[i].tf, proc_end_info->processes[i].tr);
@@ -447,7 +644,14 @@ int main(int argc, char **argv){
     }
 
     printf("escreveu no arquivo\n");
+
     write_file(argv[2]);
+
+    free(proc_info->processes);
+    free(proc_info);
+    free(proc_end_info->processes);
+    free(proc_end_info);
+    free(p_queue);
 
     exit(0);
 }
