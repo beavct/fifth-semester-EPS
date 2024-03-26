@@ -75,8 +75,6 @@ void *queue_prior();
 int calc_prior(int deadline, int dt);
 /* Ordena a fila de prioridades */
 int compare_prior(const void* i, const void* j);
-/* Ordena a fila de prioridades do escalonador por prioridade*/
-void sort_prior();
 /* Comparação utilizada para ordenar a fila SJF*/
 int compare_SJF(const void* i, const void* j);
 /* Comparação somente pelo t0, utilizada pelo RR e esc. por prior.*/

@@ -412,32 +412,6 @@ void esc_prior(){
     pthread_join(threads[0], NULL);    
 }
 
-void sort_prior() {
-    queue_node *atu = p_queue->queue_head;
-    queue_node *aux = p_queue->queue_head;
-
-    /* Encontra a posição certa pro processo em relação ao seu novo valor de prioridade */
-    while (aux != NULL && aux->next != atu && aux->next->p_info->prior <= atu->p_info->prior) {
-        aux = aux->next;
-    }
-
-    if(aux != atu){
-        p_queue->queue_head = p_queue->queue_head->next;
-
-        /*Remove o processo da posição atual */
-        atu->ant->next = atu->next;
-        atu->next->ant = atu->ant;
-
-        /* Coloca o processo na posição certa */
-        aux->next->ant = atu;
-        atu->next = aux->next;
-        atu->ant = aux;
-        aux->next = atu;
-
-    }
-
-}
-
 void *queue_prior(){
 
     for(int i=0; i<proc_info->p_quant; i++){
