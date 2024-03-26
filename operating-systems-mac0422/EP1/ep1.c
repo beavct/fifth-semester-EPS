@@ -78,17 +78,6 @@ int compare_normal(const void* i, const void* j){
     return 0;      
 }
 
-int compare_prior(const void* i, const void* j){
-    const queue_node* node_a = *(const queue_node**)i;
-    const queue_node* node_b = *(const queue_node**)j;
-
-    if(node_a->p_info->prior < node_b->p_info->prior)
-        return 1;
-    else if(node_a->p_info->prior > node_b->p_info->prior) 
-        return -1;
-    return 0;
-}
-
 void esc_SJF(){
     pthread_t threads[2];
     int t=0;
@@ -114,7 +103,7 @@ void esc_SJF(){
             time_t t0 = time(NULL);
             sleep(aux);
             time_t tf = time(NULL);
-            
+
             strcpy(proc_end_info->processes[proc_end_info->quant].name, p_queue->queue_head->p_info->name);
             proc_end_info->processes[proc_end_info->quant].tf = tf-init_time;
             proc_end_info->processes[proc_end_info->quant].tr = tf-t0;
@@ -143,6 +132,7 @@ void *queue_SJF(){
         queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
         new_node->p_info = &proc_info->processes[i];
         new_node->next = NULL;
+        new_node->ant = NULL;
 
         /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
         if(p_queue->queue_head == NULL){
@@ -156,11 +146,9 @@ void *queue_SJF(){
             }
             current->next = new_node;   
         }
-
         /* Incrementamos o tamanho da fila */
         p_queue->q_size++;       
     }
-
     return NULL;
 }
 
@@ -335,9 +323,6 @@ void esc_prior(){
             sleep(t_aux);
             time_t tf = time(NULL);
 
-
-            printf("%s no instante %ld com prioridade %d\n", p_queue->queue_head->p_info->name, t0-init_time, p_queue->queue_head->p_info->prior);
-
             /* Se o processo foi executado pela primeira vez, salvamos o t0 em que começou*/
             if(p_queue->queue_head->p_info->t0_aux==-1)
                 p_queue->queue_head->p_info->t0_aux=t0;
@@ -373,7 +358,6 @@ void esc_prior(){
                     q_aux2->ant = q_aux1;
 
                     /* Atualiza a cabeça da lista */
-                    printf("ALO!\n");
                     p_queue->queue_head=q_aux2;
 
                 }
@@ -384,8 +368,16 @@ void esc_prior(){
             }
             /* Se o processo não terminou, precisa atualizar a prioridade e arrumar a fila*/
             else{
-                p_queue->queue_head->p_info->prior = calc_prior(p_queue->queue_head->p_info->deadline, p_queue->queue_head->p_info->dt);
 
+                /* Atualiza as prioridades de todos os processos e depois os ordena */
+                queue_node *aux = p_queue->queue_head;
+                int flag=1;
+
+                while(aux!=p_queue->queue_head || flag){
+                    aux->p_info->prior = calc_prior(aux->p_info->deadline);
+                    flag=0;
+                    aux=aux->next;
+                }
                 sort_prior();
             }
             
@@ -412,6 +404,28 @@ void esc_prior(){
     pthread_join(threads[0], NULL);    
 }
 
+void sort_prior() {
+    queue_node *current = p_queue->queue_head;
+    queue_node *index = NULL;
+
+    if(p_queue->queue_head == NULL)
+        return;
+
+    while(current->next != p_queue->queue_head){
+        index = current->next;
+        while(p_queue->queue_head != index){
+            if(current->p_info->prior > index->p_info->prior){
+                process_info *aux = current->p_info;
+                current->p_info = index->p_info;
+                index->p_info = aux;
+            }
+            index=index->next;
+        }
+
+        current=current->next;
+    }
+}
+
 void *queue_prior(){
 
     for(int i=0; i<proc_info->p_quant; i++){
@@ -425,9 +439,7 @@ void *queue_prior(){
         new_node->p_info = &proc_info->processes[i];
         new_node->next = NULL;
         new_node->ant = NULL;
-        new_node->p_info->prior = calc_prior(proc_info->processes[i].deadline, proc_info->processes[i].dt);
-
-        printf("adicionando %s com prioridade %d\n", new_node->p_info->name, new_node->p_info->prior);
+        new_node->p_info->prior = calc_prior(proc_info->processes[i].deadline);
 
         pthread_mutex_lock(&mutex);
 
@@ -465,15 +477,11 @@ void *queue_prior(){
     return NULL;
 }
 
-int calc_prior(int deadline, int dt){
+int calc_prior(int deadline){
     int prior;
 
-    if(deadline - (time(NULL)-init_time) > 0 && p_queue->q_size > 0)
-        prior = p_queue->queue_head->p_info->prior + (p_queue->q_size/dt)*(deadline - (time(NULL)-init_time));
-    else if(deadline - (time(NULL)-init_time) <= 0 && p_queue->q_size > 0)
-        prior = p_queue->queue_head->p_info->prior - (deadline - (time(NULL)-init_time))/p_queue->q_size;
-    else
-        prior = 0;
+    /* O quão "atrasado" está um processo */
+    prior = (deadline - (time(NULL)-init_time));
 
     if(prior>19)    
         return 19;

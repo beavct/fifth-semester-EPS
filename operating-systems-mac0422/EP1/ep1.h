@@ -72,10 +72,10 @@ void esc_prior();
 /* Cuida da fila do escalonador com prioridade */
 void *queue_prior();
 /* Calcula a prioridade do processo, utilizada pelo escalonador com prioridade*/
-int calc_prior(int deadline, int dt);
+int calc_prior(int deadline);
+/* Ordena novamente a fila do escalonador por prioridades */
+void sort_prior();
 /* Ordena a fila de prioridades */
-int compare_prior(const void* i, const void* j);
-/* Comparação utilizada para ordenar a fila SJF*/
 int compare_SJF(const void* i, const void* j);
 /* Comparação somente pelo t0, utilizada pelo RR e esc. por prior.*/
 int compare_normal(const void* i, const void* j);
@@ -92,4 +92,3 @@ typedef struct {
     queue_node *queue_head;
     int q_size;    
 }queue;
-
