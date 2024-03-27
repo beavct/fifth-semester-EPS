@@ -63,21 +63,25 @@ int compare_str(const void* i, const void* j);
 void esc_SJF();
 /* Cuida da fila do SJF */
 void *queue_SJF();
+/* Cuida de cada processo individual SJF */
+void *SJF_thread(void *proc);
 /* Escalonador Round-Robin */
 void esc_RR();
 /* Cuida da fila do RR */
 void *queue_RR();
+/* Cuida de cada processo individual RR */
+void *RR_thread(void *proc);
 /* Escalonador com prioridade (utiliza a deadline para definir a quant. de quantums dada a cada processo) */
 void esc_prior();
 /* Cuida da fila do escalonador com prioridade */
 void *queue_prior();
+/* Cuida de cada processo individual esc. com prior. */
+void *prior_thread(void *proc);
 /* Calcula a prioridade do processo, utilizada pelo escalonador com prioridade*/
 int calc_prior(int deadline);
 /* Ordena novamente a fila do escalonador por prioridades */
 void sort_prior();
-/* Ordena a fila de prioridades */
-int compare_SJF(const void* i, const void* j);
-/* Comparação somente pelo t0, utilizada pelo RR e esc. por prior.*/
+/* Comparação somente pelo t0*/
 int compare_normal(const void* i, const void* j);
 
 /* Nó da lista ligada circular */

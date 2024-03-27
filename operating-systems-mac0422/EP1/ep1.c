@@ -2,8 +2,8 @@
 #define _GNU_SOURCE 
 
 #include <stdio.h>
-#include <stdlib.h> /* quicksort, pode usar qsort da lib?*/
-#include <string.h> /* strtok*/
+#include <stdlib.h> /* qsort() */
+#include <string.h> /* strtok() */
 #include <pthread.h>
 #include <time.h> /* clock() */
 #include <sched.h> /* CPU */
@@ -30,6 +30,9 @@ time_t init_time;
 int fin_proc=0;
 /* Mutex */
 pthread_mutex_t mutex;
+/* Afinidade de CPU */
+cpu_set_t cpuset;
+
 
 void init_queue(){
     p_queue = (queue*)malloc(sizeof(queue));
@@ -42,27 +45,6 @@ int compare_str(const void* i, const void* j){
     process_end_info *pj = (process_end_info *)j;
 
     return strcmp(pi->name, pj->name);
-}
-
-int compare_SJF(const void* i, const void* j){ 
-    process_info *pi = (process_info *)i;
-    process_info *pj = (process_info *)j;
-
-    if(pi->t0 > pj->t0){  
-        return 1;  
-    }  
-    else if(pi->t0 < pj->t0){  
-        return -1;  
-    }
-    else{
-        if(pi->dt > pj->dt){
-            return 1;
-        }
-        else if(pi->dt < pj->dt){
-            return -1;
-        }
-    }
-    return 0;      
 }
 
 int compare_normal(const void* i, const void* j){ 
@@ -94,6 +76,11 @@ void esc_SJF(){
         fprintf(stderr,"pthread_create :(\n");
         exit(1);
     }
+    /* Seta a thread para rodar somente na CPU indicada */
+    if(pthread_setaffinity_np(threads[0], sizeof(cpu_set_t), &cpuset)){
+        fprintf(stderr,"pthread_setaffinity_np :(\n");
+        exit(1);
+    }
 
 
     /* Simula o tempo do processo */
@@ -104,8 +91,6 @@ void esc_SJF(){
             time_t t0 = time(NULL);
             sleep(aux);
             time_t tf = time(NULL);
-
-            printf("rodando %s\n", p_queue->queue_head->p_info->name);
 
             strcpy(proc_end_info->processes[proc_end_info->quant].name, p_queue->queue_head->p_info->name);
             proc_end_info->processes[proc_end_info->quant].tf = tf-init_time;
@@ -123,55 +108,81 @@ void esc_SJF(){
             cont_chances++;
         }
     }
+    cont_chances--;
 
     /* Espera todas as threads terminarem */
     pthread_join(threads[0], NULL);
 }
 
 void *queue_SJF(){
+    pthread_t SJF_threads[proc_info->p_quant]; 
+    pid_t childpid;
+
     for(int i=0; i<proc_info->p_quant; i++){
-        /* Enquanto o tempo ainda é menor do que o t0 do processo, espera*/
-        while(time(NULL) < init_time + proc_info->processes[i].t0){
-            
+        /* Thread que cuida da inserção de cada processo individualmente */
+        if ((childpid = pthread_create(&SJF_threads[i], NULL, SJF_thread, (void *)&proc_info->processes[i])) == 1) {
+            fprintf(stderr,"pthread_create :(\n");
+            exit(1);
         }
+        /* Seta a thread para rodar somente na CPU indicada */
+        if(pthread_setaffinity_np(SJF_threads[i], sizeof(cpu_set_t), &cpuset)){
+            fprintf(stderr,"pthread_setaffinity_np :(\n");
+            exit(1);
+        }        
 
-        /* Adiciona o processo na fila de processos */
-        queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
-        new_node->p_info = &proc_info->processes[i];
-        new_node->next = NULL;
-        new_node->ant = NULL;
+    }
+    for(int i=0; i<proc_info->p_quant; i++){
+        pthread_join(SJF_threads[i], NULL);
+    }
 
-        /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
-        if(p_queue->queue_head == NULL){
+    return NULL;
+}
+
+void *SJF_thread(void *proc){
+    process_info *aux = (process_info *)proc;
+
+
+    /* Enquanto o tempo ainda é menor do que o t0 do processo, espera*/
+    while(time(NULL) < init_time + aux->t0){
+        
+    }
+
+    /* Adiciona o processo na fila de processos */
+    queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
+    new_node->p_info = aux;
+    new_node->next = NULL;
+    new_node->ant = NULL;
+
+    /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
+    if(p_queue->queue_head == NULL){
+        p_queue->queue_head = new_node;
+    }
+    /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
+    else{
+        pthread_mutex_lock(&mutex);
+
+        if(p_queue->queue_head->p_info->t0 == new_node->p_info->t0 && p_queue->queue_head->p_info->dt > new_node->p_info->dt){
+            new_node->next = p_queue->queue_head;
             p_queue->queue_head = new_node;
         }
-        /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
         else{
-            pthread_mutex_lock(&mutex);
+            queue_node *current = p_queue->queue_head;
+            while(current->next != NULL && current->next->p_info->t0 <= new_node->p_info->t0){
+                if(current->next->p_info->t0 == new_node->p_info->t0 && current->next->p_info->dt > new_node->p_info->dt)
+                    break;
 
-            if(p_queue->queue_head->p_info->t0 == new_node->p_info->t0 && p_queue->queue_head->p_info->dt > new_node->p_info->dt){
-                new_node->next = p_queue->queue_head;
-                p_queue->queue_head = new_node;
-
+                current = current->next;
             }
-            else{
-                queue_node *current = p_queue->queue_head;
-                while(current->next != NULL && current->next->p_info->t0 <= new_node->p_info->t0){
-                    if(current->next->p_info->t0 == new_node->p_info->t0 && current->next->p_info->dt > new_node->p_info->dt)
-                        break;
-
-                    current = current->next;
-                }
-                new_node->next = current->next;
-                current->next = new_node;  
-            }
-
-            pthread_mutex_unlock(&mutex);
-
+            new_node->next = current->next;
+            current->next = new_node;  
         }
-        /* Incrementamos o tamanho da fila */
-        p_queue->q_size++;       
+
+        pthread_mutex_unlock(&mutex);
+
     }
+    /* Incrementamos o tamanho da fila */
+    p_queue->q_size++;  
+
     return NULL;
 }
 
@@ -189,6 +200,11 @@ void esc_RR(){
     }
     else{
         fprintf(stderr,"pthread_create :(\n");
+        exit(1);
+    }
+    /* Seta a thread para rodar somente na CPU indicada */
+    if(pthread_setaffinity_np(threads[(long)0], sizeof(cpu_set_t), &cpuset)){
+        fprintf(stderr,"pthread_setaffinity_np :(\n");
         exit(1);
     }
 
@@ -218,9 +234,7 @@ void esc_RR(){
             /* Atualizamos quanto tempo falta para o processo terminar */
             p_queue->queue_head->p_info->dt -= t_aux;
 
-            /* Se a fila só tem um processo, então não conta a mudança de contexto*/
-            if(p_queue->q_size > 1)
-                cont_chances++;    
+            cont_chances++;    
         
             /* Se o processo terminou, salvamos suas informações no arquivo de saída e o tiramos da fila*/
             if(p_queue->queue_head->p_info->dt == 0){
@@ -264,50 +278,76 @@ void esc_RR(){
             pthread_mutex_unlock(&mutex);
         }
     }
+    cont_chances--;
 
     /* Espera todas as threads terminarem */
     pthread_join(threads[0], NULL);
 }
 
 void *queue_RR(){
+    pthread_t RR_threads[proc_info->p_quant]; 
+    pid_t childpid;
 
     for(int i=0; i<proc_info->p_quant; i++){
-        /* Enquanto o tempo ainda é menor do que o t0 do processo, espera*/
-        while(time(NULL) < init_time + proc_info->processes[i].t0){
-            
+
+        /* Thread que cuida da inserção de cada processo individualmente */
+        if ((childpid = pthread_create(&RR_threads[i], NULL, RR_thread, (void *)&proc_info->processes[i])) == 1) {
+            fprintf(stderr,"pthread_create :(\n");
+            exit(1);
         }
+        /* Seta a thread para rodar somente na CPU indicada */
+        if(pthread_setaffinity_np(RR_threads[i], sizeof(cpu_set_t), &cpuset)){
+            fprintf(stderr,"pthread_setaffinity_np :(\n");
+            exit(1);
+        }        
 
-        /* Adiciona o processo na fila de processos */
-        queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
-        new_node->p_info = &proc_info->processes[i];
-        new_node->next = NULL;
-        new_node->ant = NULL;
+    }
+    for(int i=0; i<proc_info->p_quant; i++){
+        pthread_join(RR_threads[i], NULL);
+    }
+  
 
-        pthread_mutex_lock(&mutex);
+    return NULL;
+}
 
-        /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
-        if(p_queue->queue_head == NULL){
-            p_queue->queue_head = new_node;
-            p_queue->queue_head->ant = new_node;
-            p_queue->queue_head->next = new_node;
-        }
-        /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
-        else{
-            queue_node *head = p_queue->queue_head;
-            queue_node *head_ant = head->ant;
+void *RR_thread(void *proc){
+    process_info *aux = (process_info *)proc;
 
-            head_ant->next = new_node;
-            new_node->ant = head_ant;
-            head->ant = new_node;
-            new_node->next = head;
-        }
+    /* Enquanto o tempo ainda é menor do que o t0 do processo, espera*/
+    while(time(NULL) < init_time + aux->t0){
+        
+    }
 
-        /* Incrementamos o tamanho da fila */
-        p_queue->q_size++;   
+    /* Adiciona o processo na fila de processos */
+    queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
+    new_node->p_info = aux;
+    new_node->next = NULL;
+    new_node->ant = NULL;
 
-        pthread_mutex_unlock(&mutex);    
-    }    
+    pthread_mutex_lock(&mutex);
 
+    /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
+    if(p_queue->queue_head == NULL){
+        p_queue->queue_head = new_node;
+        p_queue->queue_head->ant = new_node;
+        p_queue->queue_head->next = new_node;
+    }
+    /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
+    else{
+        queue_node *head = p_queue->queue_head;
+        queue_node *head_ant = head->ant;
+
+        head_ant->next = new_node;
+        new_node->ant = head_ant;
+        head->ant = new_node;
+        new_node->next = head;
+    }
+
+    /* Incrementamos o tamanho da fila */
+    p_queue->q_size++;   
+
+    pthread_mutex_unlock(&mutex);    
+    
     return NULL;
 }
 
@@ -325,6 +365,11 @@ void esc_prior(){
     }
     else{
         fprintf(stderr,"pthread_create :(\n");
+        exit(1);
+    }
+    /* Seta a thread para rodar somente na CPU indicada */
+    if(pthread_setaffinity_np(threads[(long)0], sizeof(cpu_set_t), &cpuset)){
+        fprintf(stderr,"pthread_setaffinity_np :(\n");
         exit(1);
     }
 
@@ -353,9 +398,7 @@ void esc_prior(){
             /* Atualizamos quanto tempo falta para o processo terminar */
             p_queue->queue_head->p_info->dt -= t_aux;
             
-            /* Se a fila só tem um processo, então não conta a mudança de contexto*/
-            if(p_queue->q_size > 1)
-                cont_chances++;  
+            cont_chances++;  
 
             pthread_mutex_lock(&mutex);
 
@@ -450,52 +493,76 @@ void sort_prior() {
 }
 
 void *queue_prior(){
+    pthread_t prior_threads[proc_info->p_quant]; 
+    pid_t childpid;
 
     for(int i=0; i<proc_info->p_quant; i++){
-        /* Enquanto o tempo ainda é menor do que o t0 do processo, espera*/
-        while(time(NULL) < init_time + proc_info->processes[i].t0){
-            
+
+        /* Thread que cuida da inserção de cada processo individualmente */
+        if ((childpid = pthread_create(&prior_threads[i], NULL, prior_thread, (void *)&proc_info->processes[i])) == 1) {
+            fprintf(stderr,"pthread_create :(\n");
+            exit(1);
         }
+        /* Seta a thread para rodar somente na CPU indicada */
+        if(pthread_setaffinity_np(prior_threads[i], sizeof(cpu_set_t), &cpuset)){
+            fprintf(stderr,"pthread_setaffinity_np :(\n");
+            exit(1);
+        }        
 
-        /* Adiciona o processo na fila de processos */
-        queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
-        new_node->p_info = &proc_info->processes[i];
-        new_node->next = NULL;
-        new_node->ant = NULL;
-        new_node->p_info->prior = calc_prior(proc_info->processes[i].deadline);
-
-        pthread_mutex_lock(&mutex);
-
-        /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
-        if(p_queue->queue_head == NULL){
-            p_queue->queue_head = new_node;
-            p_queue->queue_head->ant = new_node;
-            p_queue->queue_head->next = new_node;
-        }
-        /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
-        else{
-            queue_node *head = p_queue->queue_head;
-            queue_node *current = p_queue->queue_head;
-
-            /* Maior prioridade: -20, menor prioridade: +19*/
-            while(current->next != head && current->next != NULL && current->next->p_info->prior <= new_node->p_info->prior){
-                current=current->next;
-            }
-
-            queue_node *aux = current->next;
-            current->next = new_node;
-            new_node->ant = current;
-            new_node->next = aux;
-            aux->ant = new_node;
-
-        }
-
-        /* Incrementamos o tamanho da fila */
-        p_queue->q_size++;   
-
-        pthread_mutex_unlock(&mutex);   
+    }
+    for(int i=0; i<proc_info->p_quant; i++){
+        pthread_join(prior_threads[i], NULL);
 
     }    
+
+    return NULL;
+}
+
+void *prior_thread(void *proc){
+    process_info *aux = (process_info *)proc;
+
+    /* Enquanto o tempo ainda é menor do que o t0 do processo, espera*/
+    while(time(NULL) < init_time + aux->t0){
+        
+    }
+
+    /* Adiciona o processo na fila de processos */
+    queue_node *new_node = (queue_node*)malloc(sizeof(queue_node));
+    new_node->p_info = aux;
+    new_node->next = NULL;
+    new_node->ant = NULL;
+    new_node->p_info->prior = calc_prior(aux->deadline);
+
+    pthread_mutex_lock(&mutex);
+
+    /* Se a fila ainda não tem cabeça, então o novo processo é a cabeça*/
+    if(p_queue->queue_head == NULL){
+        p_queue->queue_head = new_node;
+        p_queue->queue_head->ant = new_node;
+        p_queue->queue_head->next = new_node;
+    }
+    /* Se a fila já tem cabeça, então colocamos o novo processo no fim */
+    else{
+        queue_node *head = p_queue->queue_head;
+        queue_node *current = p_queue->queue_head;
+
+        /* Maior prioridade: -20, menor prioridade: +19*/
+        while(current->next != head && current->next != NULL && current->next->p_info->prior <= new_node->p_info->prior){
+            current=current->next;
+        }
+
+        queue_node *aux = current->next;
+        current->next = new_node;
+        new_node->ant = current;
+        new_node->next = aux;
+        aux->ant = new_node;
+
+    }
+
+    /* Incrementamos o tamanho da fila */
+    p_queue->q_size++;   
+
+    pthread_mutex_unlock(&mutex);   
 
     return NULL;
 }
@@ -603,54 +670,62 @@ void write_file(char *name){
     fprintf(fptr, "%ld\n", cont_chances);
 
     fclose(fptr);     
+
+    /* Para testes */
+    int atrasados = 0;
+    int aux;
+
+    fptr = fopen("resultados.txt", "w");
+
+    for(int i=0; i<proc_end_info->quant; i++){
+        fprintf(fptr, "%s ", proc_end_info->processes[i].name);
+        aux =  proc_end_info->processes[i].tf - proc_info->processes[i].deadline;
+        fprintf(fptr, "%d\n", aux);
+        if(aux>0)
+            atrasados++;
+    }
+    fprintf(fptr,"%d\n", atrasados);
+
+    fclose(fptr);    
 }
 
 int main(int argc, char **argv){
 
     /* Mensagem de erro caso os argumentos não tenham sido dados da maneira correta*/
-    if (argc < 3) {
+    if (argc < 4) {
         fprintf(stderr,"Uso: ./ep1 <# escalonador> <trace file> <output file>\n");
         fprintf(stderr,"Vai rodar um simulador de processos utilizando o escalonador <# escalonador> e os dados de <trace file>, os resultados serão salvos em <output file>\n");
         exit(1);
     }
 
     init_processes();
-    read_tracefile(argv[1]);
+    read_tracefile(argv[2]);
     init_queue();
 
-    int esc=atoi(argv[0]);
+    int esc=atoi(argv[1]);
 
     /* Configs para rodar as threads no mesmo núcleo */
-    cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(0, &cpuset);
 
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+    //pthread_attr_t attr;
+    //pthread_attr_init(&attr);
+    //pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+
+    /* Ordena os processos pelo t0*/
+    qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_normal);
 
     if(esc==1){
-        /* Ordena os processos pelo t0 e dt*/
-        qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_normal);
-        
         esc_SJF();
     }
     else if(esc==2){
-        /* Ordena os processos pelo t0*/
-        qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_normal);
-
         esc_RR();
     }
     else if(esc==3){
-        /* Ordena os processos pelo t0*/
-        qsort(proc_info->processes, proc_info->p_quant, sizeof(process_info), compare_normal);
-
         esc_prior();
     }
 
-    printf("escreveu no arquivo\n");
-
-    write_file(argv[2]);
+    write_file(argv[3]);
 
     free(proc_info->processes);
     free(proc_info);
