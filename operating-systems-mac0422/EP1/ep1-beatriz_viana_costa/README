@@ -22,7 +22,7 @@ Para executar o newsh basta utilizar o seguinte comando:
 E assim é possível utilizar os comandos internos solicitados no enunciado e também realizar a execução de outros programas.
 Além disso, é possível navegar pelo histórico de comandos utilizados com as setas "para cima" e "para baixo".
 
-Já para executar o simulador de processos é necessário utilizar o seguinte padrão:
+Já para executar o simulador de processos é necessário estar executando o newsh e utilizar o seguinte padrão:
 ~ ./ep1 <# escalonador> <tracefile> <output file>
 Onde os escalonadores disponíveis são:
 1 - Shortest Job First;

@@ -1,0 +1,6 @@
+EXPLICAÇÕES:
+
+- esc#: Escalonador utilizado
+- tf#: Tracefile utilizada
+- s_: Saída normal
+- r_: Saída de atraso de cada processo e quantidade de processos atrasados 
