@@ -37,6 +37,10 @@ De forma que deadline>=t0+dt. Além disso, o arquivo de saída terá as seguinte
 ...
 <# mudanças de contexto>
 
+Os valores de quantum utilizados para os algoritmos do Round-Robin e escalonador com prioridades são números inteiros.
+Caso queira alterar esses valores, eles estão presentes no arquivo "ep1.c". O valor do quantum do Round-Robin pode ser alterado no #define q_RR, já o valor do quantum do escalonamento com prioridade pode ser alterado no define q_prior.
+Esses defines estão por padrão com o valor 3. 
+
 
 DEPENDÊNCIAS:
 Sistema Operacional Máquina A: Manjaro Linux 23.0.4 Uranos

@@ -1,4 +1,3 @@
-// Remove duplicate definition of _GNU_SOURCE macro
 #define _GNU_SOURCE 
 
 #include <stdio.h>
