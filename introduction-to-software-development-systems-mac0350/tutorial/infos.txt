@@ -1,0 +1,171 @@
+PYTEST:
+
+Documentação:
+    - https://docs.pytest.org/en/7.1.x/contents.html#
+
+fontes: 
+    - https://www.tutorialspoint.com/pytest/pytest_fixtures.htm
+
+O QUE É?
+O pytest é uma framework de teste para python que provê soluções para executar testes e fazer validações diversas, com a possibilidade de estender com plugins e até rodar testes do próprio unittest do python.
+- POde fazer múltiplos testes em paralelo, o que reduz o tempo de execução de um conjunto de testes.
+- Permite que testes sejam pulados durante a execução.
+- Permite que apenas um conjunto de testes sejam rodados.
+- Open source.
+- Sintaxe simples.
+
+
+INSTAÇÃO:
+    - Arch based:
+        $ sudo pacman -S python-pytest
+
+    - Debian based:
+        $ sudo apt install python3-pip -y
+        $ pip install pytest
+
+    - Para confirmar a instalação/versão:
+        $ pytest -v
+
+
+IDENTIFICAÃO DE FUNÇÕES E ARQUIVOS DE TESTE:
+Rodar o pytest sem especificar o nome do arquivo fará com que o comando rode todos os arquivos que sigam o padrão:
+test_*.py ou _test.pt no diretório atual e seus subdiretórios, ou seja, o pytest automaticamente identifica arquivos desse formato como arquivos de teste.
+Podemos também fazer com que o pytest rode outros arquivos explicicitamente mencionando eles. 
+
+Além disso, o pytest requer que as funções teste se iniciem com "test". Funções que não seguem esse formato não são consideradas como funções de teste pelo pytest. 
+E nós não podemos fazer com que o pytest considere uma função que não comece com "test" como uma funçã de teste.
+
+
+TESTE SIMPLES:
+
+    EXECUTANDO OS TESTES DE APENAS UM ARQUIVO:
+    - comando: pytest <nome> <flags>
+
+    - arquivo test_square.py
+        - teste de sqrt()
+        - teste de exponenciação
+        - teste de igualdade
+
+    - roda o comando pytest
+    - resultados:
+        - mostra o nome do arquivo e os resultados
+        - F signifia failure (falha)
+        - . significa sucesso
+
+        - a primeira função passou
+        - a segunda não passou
+        - a função "tesequality" não foi considerada, porque seu nome não segue o formato pytest 
+
+        - o comando "pytest -v" faz com que a saída do comando seja verbosa
+            - mostra mais explicicitamente qual teste falhou e qual passou
+
+    EXECUTAR TODOS OS ARQUIVOS DE TESTE (diretório atual e subdiretórios)
+    - comando: pytest <flags> 
+
+
+SELECIONAR QUAIS TESTES QUERO RODAR:
+Há duas formas de selecionar quais testes queremos rodar:
+    - Selecionar os testes a partir de uma substring comum;
+        -comando: pytest -k <substring> <flags>
+        -ex: pytest -k great -v
+
+    - Selecionar os testes a partir de markers.
+        - Markers são usadas para setar atributos a funções de teste
+        - Há markers inbutidos:
+            - xfail, skip e parametrize....
+        - Podemos criar nossos próprios markers.
+        - Sintaxe: @pytest.mark.<markername>
+            Para conseguir usar, temos que importar a lib pytest
+        - comando para rodar: pytest -m <markername>  <flags>
+        -ex: pytest -m string <flags>
+
+FIXTURES:
+(Uma função que pode ser reaproveitada por diferentes testes)
+São funções que vão rodar antes de cada função teste a qual é aplicada.
+Podem ser usadas para conseguir dados para os testesm como conexão com databases, URLs para teste e alguma ordenação do input.
+
+Uma função é marcada como fixture usando "@pytest.fixture"
+
+-ex: arquivo test_div_by_3_6.py
+A função fixture é a input_value, para as funções teste rodarem ela antes, vão precisar cita-la como parâmetro
+podemos rodar o arquivo de várias formas:
+    - pytest test_div_by_3_6.py
+    //- pytest -k divisible -v (melhor não)
+
+    - LIMITAÇÕES:
+        - O escopo da função fixture é apenas o arquivo de teste em que foi definida.
+        - Para fazer uma fixture "visível" para múltiplos arquivos, temos que definir a função fixture em um arquivo chamado conftest.py.
+
+
+CONFTEST.PY:
+- descomentar código
+- tirar o código do input_value do arquivo test_div_by_3_6.py
+- comando: pytest -k divisible -v
+    - vai executar dois arquivos diferentes
+
+PARAMETRIZANDO TESTES:
+A parametrização de um teste é feita para rodar o teste com múltiplos conjuntos de inputs.
+Para isso utilizamos o marker "@pytest.mark.parametrize"
+- comando: pytest -k multiplication -v
+
+
+- Quando um teste não é mais relevante:
+    XFAIL:
+    Adicionamos o marker "@pytest.mark.xfail"
+    - O pytest irá executar a função marcada com esse marker, contudo ela não será considerada como parte das funções que obtiveram sucesso ou falha.
+    Os detalhes desses testes também não serão impressos, mesmo que seus testes falhem.
+
+
+    SKIP:
+    Adicionamos o marker "@pytest.mark.skip"
+    - O teste mão será executado.
+
+    -ex: colocar esses markers em qualquer arquivo e rodar os testes.
+
+
+PARAR A EXECUÇÃO DE TESTE QUANDO N TESTES FALHAREM:
+- sintaxe: pytest --maxfail = <num>
+- abrir test_compare e fazer todos darem errado
+- comando: pytest test_compare.py -v --maxfail 1
+
+
+RODAR TESTES EM PARALELO:
+Por padrão, o pytest roda os testes de forma sequencial. Em um senário real, o conjunto de testes poderia ser muito grande, e uma testagem de forma sequencial com funções mais complexas seria muito lenta.
+Para rodar os testes em paralelo:
+
+    INSTAÇÃO:
+    - Debian based:
+        $ pip install pytest-xdist
+
+    - Arch based:
+        $ sudo pacman -S python-pytest-xdist
+
+    - comando: pytest -n <num>
+    num é a quantidade de teste que podem rodar em paralelo.
+
+    
+XML:
+Podemos salvar os resultados dos testes em um arquivo XML:
+-comando: pytest test_multiplication.py -v --junitxml="result.xml
+
+###############################################################################
+
+PYCHECK:
+
+Documentação:
+    - https://pypi.org/project/pycheck/
+
+Fontes:
+    - 
+
+O QUE É:
+
+
+
+INSTALAÇÃO:
+    - Arch based:
+        $ sudo pacman -S python-pytest
+
+    - Debian based:
+        $ sudo apt install python3-pip -y
+        $ pip install pycheck
