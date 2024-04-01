@@ -666,7 +666,7 @@ void write_file(char *name){
     fclose(fptr);     
 
     /* Para testes */
-    int atrasados = 0;
+    /*int atrasados = 0;
     int aux;
 
     fptr = fopen("resultados.txt", "w");
@@ -680,7 +680,7 @@ void write_file(char *name){
     }
     fprintf(fptr,"%d\n", atrasados);
 
-    fclose(fptr);
+    fclose(fptr);*/
 }
 
 int main(int argc, char **argv){
