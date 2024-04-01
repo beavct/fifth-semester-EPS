@@ -5,12 +5,12 @@ def plota_atraso():
         colors = ["#5ad45a", "#8be04e", "#ebdc78"]
         labels = ["Shortes Job First", "Round-Robin", "Escalonador com prioridade"]
 
-        dados_atraso = [[41,12,6],
+        dados_atraso = [[35, 34, 2 ],
                 [38,21,42],
-                [392,516,314]]
+                [179, 519, 324]]
 
 
-        for i in range(0,3):
+        for i in range(2,3):
                 # atraso em segundos
                 plt.bar(labels, dados_atraso[i], color=colors)
                 plt.xlabel("Escalonador")
@@ -39,11 +39,11 @@ def plota_deadline():
         colors = ["#5ad45a", "#8be04e", "#ebdc78"]
         labels = ["Shortes Job First", "Round-Robin", "Escalonador com prioridade"]    
 
-        dados_deadline = [[4, 3, 1],
+        dados_deadline = [[1,1,1 ],
                 [2, 7, 3],
-                [12, 16, 12]]
+                [7, 16, 12]]
 
-        for i in range(0,3):        
+        for i in range(1,3):        
                 # atraso da deadline
                 plt.bar(labels, dados_deadline[i], color=colors)
                 plt.xlabel("Escalonador")
@@ -71,11 +71,11 @@ def plota_mud_cont():
         colors = ["#5ad45a", "#8be04e", "#ebdc78"]
         labels = ["Shortes Job First", "Round-Robin", "Escalonador com prioridade"]
 
-        dados_mud_cont = [[7, 28, 28],
+        dados_mud_cont = [[7, 23,23],
                 [11, 23, 23],
                 [16, 34, 34]]
 
-        for i in range(0,3):        
+        for i in range(1,3):        
                 # quant. de mudanças de contexto
                 plt.bar(labels, dados_mud_cont[i], color=colors)
                 plt.xlabel("Escalonador")
@@ -101,6 +101,6 @@ def plota_mud_cont():
                     
                     
                     
-#plota_atraso()
+plota_atraso()
 #plota_deadline()
-plota_mud_cont()
+#plota_mud_cont()

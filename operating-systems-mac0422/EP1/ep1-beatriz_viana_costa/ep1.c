@@ -161,21 +161,15 @@ void *SJF_thread(void *proc){
     else{
         pthread_mutex_lock(&mutex);
 
-        if(p_queue->queue_head->p_info->t0 == new_node->p_info->t0 && p_queue->queue_head->p_info->dt > new_node->p_info->dt){
-            new_node->next = p_queue->queue_head;
-            p_queue->queue_head = new_node;
-        }
-        else{
-            queue_node *current = p_queue->queue_head;
-            while(current->next != NULL && current->next->p_info->t0 <= new_node->p_info->t0){
-                if(current->next->p_info->t0 == new_node->p_info->t0 && current->next->p_info->dt > new_node->p_info->dt)
-                    break;
+        queue_node *current = p_queue->queue_head;
+        while(current->next != NULL){
+            if(current->next->p_info->dt > new_node->p_info->dt)
+                break;
 
-                current = current->next;
-            }
-            new_node->next = current->next;
-            current->next = new_node;  
+            current = current->next;
         }
+        new_node->next = current->next;
+        current->next = new_node;  
 
         pthread_mutex_unlock(&mutex);
 
@@ -672,7 +666,7 @@ void write_file(char *name){
     fclose(fptr);     
 
     /* Para testes */
-    /*int atrasados = 0;
+    int atrasados = 0;
     int aux;
 
     fptr = fopen("resultados.txt", "w");
@@ -686,7 +680,7 @@ void write_file(char *name){
     }
     fprintf(fptr,"%d\n", atrasados);
 
-    fclose(fptr);*/
+    fclose(fptr);
 }
 
 int main(int argc, char **argv){
