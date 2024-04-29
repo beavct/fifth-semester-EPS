@@ -1,0 +1,67 @@
+- Modalidade de ciclismo: Win and out em que o último a cruzar a linha de chegada é eliminado a cada rodada;
+
+
+- ESTRUTURA DA COMPETIÇÃO:
+    - Os ciclistas iniciam a prova ao mesmo tempo no mesmo lado do velódromo.
+    - 2*n voltas (n natural positivo) o primeiro cicilista que completar a volta na primeira posição sai da corrida e estará classificado na posição n.
+    - A prova termina quando o penúltimo ciclista cruzar a linha de chegada.
+
+    - velódromo: d metros (100<= d <=2500)
+    - k ciclistas (5<= k <= 5*(d-1))
+
+    - a qualquer momento, no máx., apenas 10 ciclistas podem estar lado a lada em cada ponto da pista
+    - cada ciclista ocupa 1 metro de comprimento da pista
+
+- REQUISITOS:
+    - Linguagem C e pthreads;
+    - k threads ciclista iguais
+    - eles largam em fila ordenados aleatoriamente com no máx. 5 ciclistas lado a lado em cada posição
+
+    - todos os ciclistas fazem a primeira volta a 30km/h (1m a cada 120ms)
+    - depois disso cada um define suas velocidades aleatoriamente p/ realizar a volta atual como sendo 30 ou 60km/h (1m a cada 60ms)
+    - caso a volta anterior tenha sido fera a 30km/h -> o sorteior é feito com 70% de chances de escolher 60km/h e 30% de escolher 30km/h 
+    - caso a volta anterior tenha sido fera a 60km/h -> o sorteior é feito com 50% de chances de escolher 60km/h e 50% de escolher 30km/h 
+
+    - SORTEIO: forma autônoma por cada thread ciclista e uma delas deve ser responsável por controlar quando é hora do ciclista avançar uma posição na pista
+
+    - NÃO pode haver uma entidade central fazendo as definições das velocidades e nem controlando qual ciclista deve se mover em um dado instante de forma sequencial
+
+    - ENTIDADE CENTRAL: impressão na tela e controlar o relógio global
+
+    - Se um cicilista coemçar a pedalar a 30km/h e os de trás não puderem ultrapassar, devem começar a pedalar a 30km/h também
+    - Ultrapassagens só podem ser feitas caso haja espaçi em alguma pista mais externa (ultrapassagens só podem ser realizadas usando pistas externas)
+
+    - PISTA: vetor circular compartilhado de tamanho d 
+        - Cada posição corresponde a 1 metro da pista
+        - em um instante i a pista deve possuir os identificadores de todos os ciclistas que estão nesse trecho -> MATRIZ
+
+    - Simular a corriga em intervalos de 60ms
+
+    - cada thread ciclista tem a obrigação de escrever seu id na posição correta do vetor pista a cada momento em que ele entra em um novo trecho de 1m e de remover seu id da posição referente ao trecho que ele acabou de Simular
+
+    - A cada vez que o ciclista completa múltiplos de 6 voltas, ele tem a chance de 15% de quebrar, caso o ciclista quebre a info deve ser exibida na tela no momento exato em que ele quebrou.
+        - A volta em que ele estava e o identificador deve ser informados
+        - O sorteio deve ser feito por cada tread ciclista
+        - Se ele quebrar, a thread eve ser destruída
+    
+    - Se o ciclista terminar a prova, sua thread deve ser destruida
+
+    - Caso dois ciclistas cruzem a linha de chegada ao mesmo tempo -> sorteio aleatório
+
+    - SAÍDA: relatório informando a cada volta completada, as posições de todos os ciclistas naquela volta.
+    Ao término da corrida o ranqueamento final de todos os ciclistas e o instante que cada um cruzou a linha de chegada pela última vez.
+    Os ciclistas que quebrarem devem ser identificados nessa lista final como tendo quebrado, e ao invés de mostrar as suas colocações, deve ser informada a volta em que eles quebraram.
+    - NÃO há formato padrão para a SAÍDA
+
+    - Deve permitir uma opção --debug no shell que informa a cada 60ms o status de cada posição da pista, ou seja, o identificador dos ciclistas naquela posição ou a informação de que não há nenhum ciclista ali.
+    Nesse caso do debug, a saı́da com o relatório de cada volta não deve ser impresso na tela, apenas o relatório final ao término da corrida.
+
+    - ENTRADA: Com relação à entrada, seu simulador deve receber como argumentos de linha de comando, nesta ordem, os dois números inteiros sem necessidade de validá-los.
+    Lembre que seu programa é um simulador. Ou seja, a simulação não precisa levar o mesmo tempo que uma corrida de verdade levaria.
+
+ENTREGA:
+ - 1 .c
+ - 1 .h
+ - README
+ - Makefile
+ - Slides (12) .pdf
