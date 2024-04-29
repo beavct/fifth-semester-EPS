@@ -1,7 +1,7 @@
 #define _GNU_SOURCE 
 
 #include <stdio.h>
-#include <stdlib.h> /* malloc(), itoa() */
+#include <stdlib.h> /* malloc(), itoa(), rand() */
 #include <pthread.h>
 #include <semaphore.h>
 #include <string.h> /* strtok() */
@@ -22,8 +22,12 @@ pthread_mutex_t pos_ini_mutex;
 /* Posição para o ciclista no ínicio da simulação */
 Coordenadas pos_ini;
 
+/* Ciclistas que ainda estão na pista */
+int c_na_pista;
+
 /* Semáforo para ver se pode começar a próxima volta */
 sem_t *continuar_corrida;
+
 
 void pegar_espaco(int k){
     espaco=0;
@@ -48,7 +52,7 @@ void init_velodromo(int d){
     }
 
     pos_ini.x = d-1;
-    pos_ini.y = 0;
+    pos_ini.y = 9;
 }
 
 void print_velodromo(int d){
@@ -82,7 +86,6 @@ void free_coisas(int k){
 
 }
 
-
 void* pedalando(void* args){
     Ciclista *ciclista_t = (Ciclista*)args;
     
@@ -97,8 +100,8 @@ void* pedalando(void* args){
 void init_ciclista(Ciclista *ciclista){
 
     pthread_mutex_lock(&pos_ini_mutex);
-    if(pos_ini.y>=5){
-        pos_ini.y=0;
+    if(pos_ini.y<5){
+        pos_ini.y=9;
         pos_ini.x = (pos_ini.x+1)%ciclista->d;
     }
 
@@ -107,12 +110,56 @@ void init_ciclista(Ciclista *ciclista){
     ciclista->posicao.x = pos_ini.x;
     ciclista->posicao.y = pos_ini.y;
 
-    pos_ini.y=(pos_ini.y+1)%10;
+    pos_ini.y=(pos_ini.y-1)%10;
 
     pthread_mutex_unlock(&pos_ini_mutex); 
 
-    ciclista->velocidade=120;
-    ciclista->volta=0;
+    ciclista->velocidade=30;
+    ciclista->quebrou=0;
+    
+    if(ciclista->posicao.x<ciclista->d)
+        ciclista->volta=-1;
+    else
+        ciclista->volta=0;
+}
+
+void rand_velocidade(Ciclista *ciclista){
+    srand(time(0));
+
+    double f = (double)rand()/RAND_MAX;
+
+    if(ciclista->velocidade==30){
+        if(f<=0.7)
+            ciclista->velocidade = 60;
+        else
+            ciclista->velocidade = 30;
+    }
+    else{
+        if(f<=0.5)
+            ciclista->velocidade = 60;
+        else
+            ciclista->velocidade = 30;
+    }
+}
+
+int rand_quebrar(){
+    srand(time(0));
+
+    double f = (double)rand()/RAND_MAX;
+
+    
+    if(f<=0.15)
+        return 1; // quebrou
+    else 
+        return 0;
+}
+
+int rand_ganhador(int i){
+    srand(time(0));
+
+    int f = (rand()%i)+1;
+
+    return f;
 }
 
 int main(int argc, char **argv){
@@ -128,6 +175,8 @@ int main(int argc, char **argv){
     int d=atoi(argv[1]);
     // k ciclistas
     int k=atoi(argv[2]);
+
+    c_na_pista=k;
 
     pegar_espaco(k);
     init_velodromo(d);
@@ -170,8 +219,13 @@ int main(int argc, char **argv){
 
     for (t = 0; t < k; t++) {
         sem_wait(&continuar_corrida[t]);
+        
     }
     print_velodromo(d);
+
+    //while(c_na_pista >=2){
+//
+    //}
 
 
 
