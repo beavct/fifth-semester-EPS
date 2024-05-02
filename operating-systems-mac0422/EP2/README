@@ -1,0 +1,35 @@
+AUTOR:
+Nome: Beatriz Viana Costa
+NUSP: 13673214
+E-mail: beatrizvianacosta@usp.br
+
+
+
+DESCRIÇÃO:
+O presente trabalho trata-se de um simulador de ciclismo na modalidade corrida por eliminação.
+Ou seja, o usuário informa qual será com comprimento do velódromo em "d" metros e quantos "k" ciclistas estarão participando da corrida, e o EP, de maneira aleatória e concorrente, simula essa modalidade com o critério Win and Out. Para isso o simulador faz o uso de pthreads, semáforos genéricos e semáforos binários. 
+O programa também acompanha um PDF relatando experimentos, analizando o uso de memória e o tempo. 
+
+
+
+COMO EXECUTAR:
+Para a compilação do programa, basta executar o seguinte comando no terminal:
+~ make
+
+Para executar o simulador, é necessário usar o seguinte padrão de entrada:
+~ ./ep2 <d> <k> <-debug>
+
+Onde "d" é o comprimento do velódromo em metros, "k" é a quantidade de ciclistas e "-debug", um argumento opcional, que quando passado, faz com que o velódromo seja impresso na tela a cada 60ms.
+
+No relatório por volta, é informado o ID do ciclista e também a sua posição no eixo x (que pertence ao intervalo [0, d-1]). Um ciclista retardatário, ou seja, que está em uma volta anterior a atual, é indicado por um "[RET]". 
+Além disso, caso algum ciclista quebre durante a simulação, essa informação é exibida na tela no momento exato da quebra.
+
+Ao fim da simulação, um placar é exibido em ordem crescente de posição, e também um relatório de quais foram os ciclistas que quebraram durante a simulação.
+
+
+DEPENDÊNCIAS:
+Sistema Operacional: Manjaro Linux 23.0.4 Uranos
+CPU: 12th Gen Intel(R) Core(TM) i7-1255U
+
+gcc (GCC) 13.2.1 20230801
+GNU Make 4.4.1

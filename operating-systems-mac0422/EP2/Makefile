@@ -14,4 +14,4 @@ ep2.o: ep2.h
 
 ep2: ${EP2_OBJ}
 	${PP} ${COMPFLAGS} -o ep2 -O ep2.c -lpthread 
-	@rm -rf *.o%    
+	@rm -rf *.o
