@@ -472,8 +472,6 @@ int main(int argc, char **argv){
 
         // tem o modo debug
         if(argc == 4 && strcmp(argv[3], "-debug") == 0){
-            sleep(1);
-            //printf("VELÓDROMO\n");
             print_velodromo(d); 
         }
 

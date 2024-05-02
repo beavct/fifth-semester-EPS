@@ -27,6 +27,7 @@ Além disso, caso algum ciclista quebre durante a simulação, essa informação
 Ao fim da simulação, um placar é exibido em ordem crescente de posição, e também um relatório de quais foram os ciclistas que quebraram durante a simulação.
 
 
+
 DEPENDÊNCIAS:
 Sistema Operacional: Manjaro Linux 23.0.4 Uranos
 CPU: 12th Gen Intel(R) Core(TM) i7-1255U
