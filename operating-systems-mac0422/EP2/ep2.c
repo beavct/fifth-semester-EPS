@@ -241,7 +241,7 @@ void* pedalando(void* args){
 
 
         // soma o quanto de espaço ele andou
-        double aux_metros = ciclista_t->metros + ciclista_t->velocidade/60;
+        double aux_metros = ciclista_t->metros + (double)ciclista_t->velocidade/(double)60;
 
 
         // então o ciclista pode andar um metro
@@ -283,8 +283,8 @@ void* pedalando(void* args){
 
             // vê se pode ultrapassar
             else{
-                for(int i=0; i<10; i++){
-                    if(i!=ciclista_t->posicao.y && velodromo[i][next_x]==0){
+                for(int i=9; i>=0; i--){
+                    if(velodromo[i][next_x]==0){
                         pode_passar=1;
 
                         velodromo[ciclista_t->posicao.y][ciclista_t->posicao.x]=0;
@@ -292,11 +292,6 @@ void* pedalando(void* args){
 
                         ciclista_t->posicao.x = next_x;
                         ciclista_t->posicao.y=i;
-
-                        
-
-                        // atualiza o quanto pode andar
-                        ciclista_t->metros=aux_metros-1;
 
                         // para testes
                         //printf("O ciclista %d conseguiu ultrapassar\n", ciclista_t->id);
@@ -314,11 +309,17 @@ void* pedalando(void* args){
                 // para testes
                 //printf("O ciclista %d não conseguiu ultrapassar\n", ciclista_t->id);
             }
+            else{
+                // atualiza o quanto pode andar
+                ciclista_t->metros=aux_metros-1;
+            }
             
             pthread_mutex_unlock(&mutex_pos);
 
         }
-
+        else{
+            ciclista_t->metros=aux_metros;
+        }
         // o ciclista já fez o seu movimento
         ciclista_t->andou=1;
 
@@ -425,7 +426,7 @@ int main(int argc, char **argv){
     infos_ciclistas = (Ciclista*)malloc(sizeof(Ciclista)*k);
 
     for(int t=0; t<k; t++){
-        if (sem_init(&arrive[t], 0, 1) != 0) {
+        if (sem_init(&arrive[t], 0, 0) != 0) {
             fprintf(stderr,"sem_init :(\n");
             exit(EXIT_FAILURE);
         }
@@ -533,7 +534,7 @@ int main(int argc, char **argv){
         printf(">> Ciclistas quebrados durante a simulação:\n\n");
 
         for(int i=0; i<infos_centrais->q_quebrados; i++){
-            printf("• Ciclista %d\n", infos_centrais->quebrados[i].id_ciclista);
+            printf("̣• Ciclista %d\n", infos_centrais->quebrados[i].id_ciclista);
             printf("    Volta: %d\n", infos_centrais->quebrados[i].volta);
             printf("    Instante: %dms\n\n", infos_centrais->quebrados[i].instante*60);
         }
