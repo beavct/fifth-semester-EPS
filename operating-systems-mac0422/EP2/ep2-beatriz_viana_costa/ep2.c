@@ -5,7 +5,8 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <string.h>
-#include <unistd.h> /* time() */
+//#include <unistd.h> /* time() */
+#include <time.h>
 #include "ep2.h"
 
 /* VARIÁVEIS GLOBAIS */
@@ -20,6 +21,9 @@ pthread_mutex_t mutex_pos;
 
 /* Semáforo binário para verificar quem chegou na linha de chegada*/
 pthread_mutex_t mutex_ganhador;
+
+/*pro rand*/
+pthread_mutex_t mutex_rand;
 
 /* Semáforo binário para verificar a volta atual*/
 pthread_mutex_t mutex_volta;
@@ -202,7 +206,8 @@ void* pedalando(void* args){
 
         // rand pra ver se o ciclista vai quebrar
         if(ciclista_t->volta%6==0 && ciclista_t->volta>0){
-            int quebrou = rand_quebrar();
+            int quebrou = rand_quebrar(ciclista_t);
+
             if(quebrou){
                 printf(">> Ciclista %d quebrou\n", ciclista_t->id);
                 //printf("ID: %d\n", ciclista_t->id);
@@ -228,9 +233,6 @@ void* pedalando(void* args){
                 break;
             }
         }
-
-        // o ciclista ainda não fez o seu movimento
-        ciclista_t->andou=0;
 
         // faz um rand pra ver a próxima velocidade do ciclista
         if(ciclista_t->iteracoes>0)
@@ -320,9 +322,6 @@ void* pedalando(void* args){
         else{
             ciclista_t->metros=aux_metros;
         }
-        // o ciclista já fez o seu movimento
-        ciclista_t->andou=1;
-
         ciclista_t->iteracoes++;
 
         sem_post(&arrive[ciclista_t->id-1]);
@@ -359,21 +358,26 @@ void init_ciclista(Ciclista *ciclista){
 
     ciclista->velocidade=30;
     ciclista->quebrou=0;
-    ciclista->andou=0;
     ciclista->iteracoes=0;
     ciclista->metros=0;
     ciclista->on=1;
+    ciclista->seed=time(NULL)*(unsigned int)pthread_self();
     
     if(ciclista->posicao.x<ciclista->d-1)
         ciclista->volta=-1;
     else
         ciclista->volta=0;
+    
 }
 
 void rand_velocidade(Ciclista *ciclista){
-    srand(time(0)+ciclista->id);
 
-    double f = (double)rand()/RAND_MAX;
+    pthread_mutex_lock(&mutex_rand);
+    srand(ciclista->seed);
+
+    float f = (float)rand()/(float)RAND_MAX;
+
+    pthread_mutex_unlock(&mutex_rand);
 
     if(ciclista->velocidade==30){
         if(f<=0.7)
@@ -389,16 +393,20 @@ void rand_velocidade(Ciclista *ciclista){
     }
 }
 
-int rand_quebrar(){
-    srand(time(0)+volta_atual_geral);
+int rand_quebrar(Ciclista *ciclista){
 
-    double f = (double)rand()/RAND_MAX;
+    pthread_mutex_lock(&mutex_rand);
+    srand(ciclista->seed);
 
-    
-    if(f<=0.15)
+    float f = (float)rand()/(float)RAND_MAX;
+    pthread_mutex_unlock(&mutex_rand);
+
+    if(f<0.15){
         return 1; // quebrou
+    }
     else 
         return 0;
+
 }
 
 int main(int argc, char **argv){
@@ -420,6 +428,7 @@ int main(int argc, char **argv){
     pegar_espaco(k);
     init_velodromo(d);
     init_Central(k);
+    //srand(time(NULL));  
 
     arrive = (sem_t*)malloc(sizeof(sem_t)*k);
     continue_s = (sem_t*)malloc(sizeof(sem_t)*k);
@@ -442,7 +451,7 @@ int main(int argc, char **argv){
     pthread_mutex_init(&mutex_pos, NULL);
     pthread_mutex_init(&mutex_volta, NULL);
     pthread_mutex_init(&mutex_ganhador, NULL);
-
+    pthread_mutex_init(&mutex_rand, NULL);
 
     // Cria a thread de cada ciclista
     for(int t=0; t<k; t++){
@@ -532,6 +541,7 @@ int main(int argc, char **argv){
     if(infos_centrais->q_quebrados>0){
         // printa as infos dos quebrados    
         printf(">> Ciclistas quebrados durante a simulação:\n\n");
+        printf("• Quantidade: %d\n\n", infos_centrais->q_quebrados);
 
         for(int i=0; i<infos_centrais->q_quebrados; i++){
             printf("̣• Ciclista %d\n", infos_centrais->quebrados[i].id_ciclista);

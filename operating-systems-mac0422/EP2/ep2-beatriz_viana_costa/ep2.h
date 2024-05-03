@@ -7,6 +7,7 @@ typedef struct{
 
 /* ESTRUTURA DO CICLISTA */
 typedef struct{
+    unsigned int seed;
     int velocidade; // em km/h
     int volta;
     int colocação;
@@ -15,7 +16,6 @@ typedef struct{
     int d;
     int quebrou; 
     int iteracoes; // quantas iterações já participou
-    int andou; // se já andou na iteração ou não
     double metros; // quantos metros pode andar
     int on; // se o ciclista ainda está na pista
 }Ciclista;
@@ -23,8 +23,7 @@ typedef struct{
 void* pedalando(void* args);
 void init_ciclista(Ciclista *ciclista);
 void rand_velocidade(Ciclista *ciclista);
-int rand_quebrar();
-int rand_ganhador();
+int rand_quebrar(Ciclista *ciclista);
 
 /* VARIÁVEL COMPARTILHADA DO VELÓDROMO */
 typedef int** Velodromo; 
