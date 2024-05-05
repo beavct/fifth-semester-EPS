@@ -1,6 +1,3 @@
-'''perguntar sobre a biblioteca math para o professor'''
-from math import sqrt
-
 def distancia(P1, P2):
     '''(ponto, ponto) -> float
 
@@ -23,7 +20,7 @@ def distancia(P1, P2):
     dist_y = P2[1] - P1[1];
     
     
-    dist = sqrt(dist_x**2 + dist_y**2);
+    dist = (dist_x**2 + dist_y**2)**(0.5);
     
     return dist;
 
@@ -130,16 +127,17 @@ def deteccaoColisao(Nave, Astros):
     '''
     
     for astro in Astros:
-        n_x, n_y = Nave[0];
-        a_x, a_y = astro[0];
+        n_raio = Nave[2]
+        a_raio = astro[2]
         
-        # verifica se ouve sobreposição entre a nave fornecida com algum dos astros da lista
-        if n_x == a_x and n_y == n_y:
-            return True;
+        # Verifica a distância entre a nave e o astro
+        d = distancia(Nave[0], astro[0])
         
+        # Verifica se houve colisão
+        if d-(n_raio + a_raio) <= 0:
+            return True
         
-        
-    return False;
+    return False
 
 
 def atualizaNave(Nave, Astros, delta_t):
@@ -168,6 +166,29 @@ def atualizaNave(Nave, Astros, delta_t):
     Pré-condição: 
         A função supõe que a nave está ativa.
     '''
+    
+    posicao_atual = Nave[0]
+    velocidade_atual = Nave[1]
+    
+    aceleracao = aceleracaoResultante(Astros, posicao_atual)
+    
+    # EQUAÇÃO (9)
+    # x' = x + v Delta_t + (a Delta_t^2)/2 
+    nova_posicao = [
+        posicao_atual[0] + velocidade_atual[0] * delta_t + 0.5 * aceleracao[0] * delta_t ** 2,
+        posicao_atual[1] + velocidade_atual[1] * delta_t + 0.5 * aceleracao[1] * delta_t ** 2
+    ]
+    
+    # EQUAÇÃO (10)
+    # v' = v + a Delta_t
+    nova_velocidade = [
+        velocidade_atual[0] + aceleracao[0] * delta_t,
+        velocidade_atual[1] + aceleracao[1] * delta_t
+    ]
+    
+    Nave[0] = nova_posicao
+    Nave[1] = nova_velocidade
+    
     return None
 
     
@@ -183,7 +204,21 @@ def distanciaAstroMaisProximo(Nave, Astros):
           A distância deve ser medida em relação a superfície do astro e da nave.
           Em caso de nave colidida, a distância deve ser zero.
     '''
-    return -1.0
+    # infinito: pode usar um valor muito grande também
+    menor_distancia = float('inf')
+    
+    for astro in Astros:
+        distancia_nave_astro = distancia(Nave[0], astro[0]) - Nave[2] - astro[2]
+        
+        # precisa ser em relação ao astro mais próximo
+        if distancia_nave_astro < menor_distancia:
+            menor_distancia = distancia_nave_astro
+    
+    # colidiu
+    if menor_distancia < 0:
+        return 0.0
+    else:
+        return menor_distancia
 
 
 def simulacao(Naves, Astros, niter, delta_t):
@@ -231,13 +266,37 @@ def simulacao(Naves, Astros, niter, delta_t):
     ([[[13545.176895903343, 0.0], [-13437.380528213638, 0.0]], [[100.21377507987808, 20668.746096834035], [171.5514201156242, 6162.332357329415]]], [[8045.176895903343, 7937.380528213638], [15468.989041946581, 964.7197804874131]])
     '''
     
-    #for i in range(0, delta_t):
+    trajetorias = []
+    distancias = []
+    
+    # Simula para cada uma das naves
+    for nave in Naves:
         
+        # Inicializa as variáveis
+        trajetoria_nave = []
+        distancia_nave = []
+        
+        # Itera pera quantidade de iterações
+        for i in range(0, niter):
+            
+            # Se teve colisão então só copia até o fim da simulação dessa nave
+            if deteccaoColisao(nave, Astros):
+                # Copia a posição atual da nave
+                trajetoria_nave.append(nave[0][:]) 
+                # Coloca a distância ao astro mais próximo como 0 (colisão)
+                distancia_nave.append(0.0)
+                continue
+            else:
+                atualizaNave(nave, Astros, delta_t)
+                trajetoria_nave.append(nave[0][:])
+                distancia_nave.append(distanciaAstroMaisProximo(nave, Astros))
+        
+        # Colona na lista de saída
+        trajetorias.append(trajetoria_nave)
+        distancias.append(distancia_nave)
     
-    
-    
-    
-    return [], []
+    return trajetorias, distancias
+
 
 
 #Não altere o código abaixo:
@@ -288,10 +347,26 @@ def main():
 #O propósito do comando condicional abaixo será explicado em aula 
 #em um momento oportuno. Sem o seu uso, o corretor do VPL não irá 
 #funcionar adequadamente.
-#if __name__ == "__main__":
-#    main()
+if __name__ == "__main__":
+    main()
+'''
+TESTES
 
+print(aceleracaoGravitacional([[0,0],5.97e+24], [300000,300000]))
+print(aceleracaoGravitacional([[0,0],5.97e+24],[6563,0]))
+print(aceleracaoGravitacional([[0,0],5.97e+24],[0,6563]))
+print(aceleracaoGravitacional([[0,0],5.97e+24],[30000,0]))
+print(aceleracaoGravitacional([[0,0],5.97e+24],[90000,0]))
+print(aceleracaoGravitacional([[0,0],5.97e+24],[180000,0]))
 
 print(aceleracaoResultante([[[0,0],5.97e+24], [[384400,0],7.35e+22]], [192200,0]))
 print(aceleracaoResultante([[[0,0],8.97e+22], [[100000,0],5e+21]], [80000,0]))
 print(aceleracaoResultante([[[0, 0],8.0e+22], [[100000,0], 5e+21]], [80000,0]))
+
+print(distancia([1,1],[0,0]))
+print(distancia([1,0],[1,1]))
+print(distancia([0,1],[1,1]))
+
+print(simulacao([[[20000,0],[0,0],500], [[0,25000],[100,-200],200]], [[[0,0],5.97e+24, 5000], [[384400,0],7.35e+22, 4000]], 2, 1))
+#print(simulacao([[[20000,0],[0,0],500]], [[[0,0],5.97e+24, 5000], [[384400,0],7.35e+22, 4000]], 2, 1))
+'''
