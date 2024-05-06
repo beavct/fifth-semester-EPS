@@ -134,7 +134,8 @@ def deteccaoColisao(Nave, Astros):
         d = distancia(Nave[0], astro[0])
         
         # Verifica se houve colisão
-        if d-(n_raio + a_raio) <= 0:
+        if d < n_raio + a_raio:
+            print("entrou aq")
             return True
         
     return False
@@ -280,18 +281,20 @@ def simulacao(Naves, Astros, niter, delta_t):
         for i in range(0, niter):
             
             # Se teve colisão então só copia até o fim da simulação dessa nave
-            if deteccaoColisao(nave, Astros):
+            if deteccaoColisao(nave, Astros) and i!=0:
+                
                 # Copia a posição atual da nave
                 trajetoria_nave.append(nave[0][:]) 
                 # Coloca a distância ao astro mais próximo como 0 (colisão)
                 distancia_nave.append(0.0)
-                continue
+                pass
             else:
                 atualizaNave(nave, Astros, delta_t)
-                trajetoria_nave.append(nave[0][:])
-                distancia_nave.append(distanciaAstroMaisProximo(nave, Astros))
+            
+            trajetoria_nave.append(nave[0][:])
+            distancia_nave.append(distanciaAstroMaisProximo(nave, Astros))
         
-        # Colona na lista de saída
+        # Coloca na lista de saída
         trajetorias.append(trajetoria_nave)
         distancias.append(distancia_nave)
     
@@ -349,24 +352,3 @@ def main():
 #funcionar adequadamente.
 if __name__ == "__main__":
     main()
-'''
-TESTES
-
-print(aceleracaoGravitacional([[0,0],5.97e+24], [300000,300000]))
-print(aceleracaoGravitacional([[0,0],5.97e+24],[6563,0]))
-print(aceleracaoGravitacional([[0,0],5.97e+24],[0,6563]))
-print(aceleracaoGravitacional([[0,0],5.97e+24],[30000,0]))
-print(aceleracaoGravitacional([[0,0],5.97e+24],[90000,0]))
-print(aceleracaoGravitacional([[0,0],5.97e+24],[180000,0]))
-
-print(aceleracaoResultante([[[0,0],5.97e+24], [[384400,0],7.35e+22]], [192200,0]))
-print(aceleracaoResultante([[[0,0],8.97e+22], [[100000,0],5e+21]], [80000,0]))
-print(aceleracaoResultante([[[0, 0],8.0e+22], [[100000,0], 5e+21]], [80000,0]))
-
-print(distancia([1,1],[0,0]))
-print(distancia([1,0],[1,1]))
-print(distancia([0,1],[1,1]))
-
-print(simulacao([[[20000,0],[0,0],500], [[0,25000],[100,-200],200]], [[[0,0],5.97e+24, 5000], [[384400,0],7.35e+22, 4000]], 2, 1))
-#print(simulacao([[[20000,0],[0,0],500]], [[[0,0],5.97e+24, 5000], [[384400,0],7.35e+22, 4000]], 2, 1))
-'''
