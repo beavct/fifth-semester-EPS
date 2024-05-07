@@ -1,8 +1,8 @@
 #!/bin/bash
-PISTA=(20 70 200)
+PISTA=(100 200 300)
 # P M G
 
-CICLISTAS=(10 40 200)
+CICLISTAS=(200 300 400)
 # P N M
 
 # Adiciona cabeçalhos ao arquivo CSV
@@ -20,7 +20,7 @@ for p_size in ${PISTA[@]}; do
         #end=$(date +%s.%N)
         #exec_time=$(echo "($end - $start)" | bc)
 
-        echo "rodou para " $p_size " e " $c_size " o tempo deu " $mem
+        echo "rodou para d= " $p_size " e c= " $c_size " o tempo deu " $mem
         #echo "rodou para " $p_size " e " $c_size " o tempo deu " $exec_time
 
         

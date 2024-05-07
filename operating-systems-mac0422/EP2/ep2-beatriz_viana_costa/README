@@ -7,7 +7,8 @@ E-mail: beatrizvianacosta@usp.br
 
 DESCRIÇÃO:
 O presente trabalho trata-se de um simulador de ciclismo na modalidade corrida por eliminação.
-Ou seja, o usuário informa qual será com comprimento do velódromo em "d" metros e quantos "k" ciclistas estarão participando da corrida, e o EP, de maneira aleatória e concorrente, simula essa modalidade com o critério Win and Out. Para isso o simulador faz o uso de pthreads, semáforos genéricos e semáforos binários. 
+Ou seja, o usuário informa qual será com comprimento do velódromo em "d" metros e quantos "k" ciclistas estarão participando da corrida, e o EP, de maneira aleatória e concorrente, simula essa modalidade com o critério Win and Out. Para isso o simulador faz o uso de pthreads, semáforos genéricos e semáforos binários.
+O simulador, a cada volta, apresenta um relatório indicando o ID e posição de cada ciclista no momento, além disso, ao fim da simulaçõ, apresenta um resumo de toda a simulação da modalidade: um placar geral e um indicativo de quais ciclistas quebraram durante a prova.
 O programa também acompanha um PDF relatando experimentos, analizando o uso de memória e o tempo. 
 
 

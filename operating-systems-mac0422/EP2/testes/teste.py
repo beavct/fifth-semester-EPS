@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 
 def plota_mem():
     # velodromo
-    V = [20,70,200]
+    V = [100,200,400]
     colors = ["#5ad45a", "#8be04e", "#ebdc78"]
     # ciclistas
-    labels = [10, 40, 200]
+    labels = [200,300,400]
 
-    memoria = [[1960,2300,3736],
-            [2036,2252,3532],
-            [2000,2256,3712]]
+    memoria = [[7084,7180,7596],
+            [3500,7544,5316],
+            [6632,7212,7348]]
 
 
     for i in range(0, 3):
@@ -22,25 +22,25 @@ def plota_mem():
 
         plt.xticks(X_axis, labels) 
         plt.xlabel("Quantidade k de ciclistas") 
-        plt.ylabel("Uso de memória em kB") 
+        plt.ylabel("Uso máx. de memória em kB") 
         plt.title(f"Velódromo de comprimento {V[i]}") 
         plt.grid(color ='grey',
         linestyle ='-.', linewidth = 0.5,
         alpha = 0.2)
         plt.legend() 
-        plt.savefig(f"tempo_p{V[i]}")
+        plt.savefig(f"mem_p{V[i]}")
 
 
 def plota_tempo():
     # velodromo
-    V = [20,70,200]
+    V = [100,200,400]
     colors = ["#5ad45a", "#8be04e", "#ebdc78"]
     # ciclistas
-    labels = [10, 40, 200]
+    labels = [200,300,400]
 
-    tempo = [[0.037800349, 0.554299521, 0.210188426],
-            [0.109301736,0.790978198,2.035625333],
-            [0.230458596,2.857424442,233.778823073]]
+    tempo = [[211.09,456.85,1064.67],
+            [246.80,814.10,2014.21],
+            [496.45,1842.34,5155.79]]
 
 
     for i in range(0, 3):
@@ -60,7 +60,7 @@ def plota_tempo():
         plt.savefig(f"tempo_p{V[i]}")
     
 
-plota_mem()
+plota_tempo()
 
 '''
 X = ['Group A','Group B','Group C','Group D'] 
