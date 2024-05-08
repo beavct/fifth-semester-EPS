@@ -1,0 +1,62 @@
+Aula 7 - 17/04/2024
+
+- Grafos:
+
+    ¨ Conjunto de vértices e de arestas sobre os seus vértices
+
+    - Características:
+        ¨ Direcionados (dirigidos)
+        ¨ Simples (sem laços e arestas múltiplas)
+        ¨ Podem ter custos ou outras informações nas arestas/vértices
+
+    - Estruturas:
+        ¨ Caminho:
+            Não repete vértices nem arestas
+            O tamanho é o número de arestas
+            A distância entre dois vértices é o tamanho do menor caminho entre eles
+
+        ¨ Trilhas:
+            Pode repetir vértices, mas não pode repetir arestas
+
+        ¨ Passeios:
+            Pode repetir tanto vértice como aresta
+
+        ¨ Ciclo:
+            É um caminho fechado (repete apenas o primeiro e último vértices, que são o mesmo)
+
+        ¨ Subgrafo:
+            Conjunto menor ou igual de arestas e vértices de um grafo
+            Pode ser conexo, se para qualquer dois vértices do subgrafo há um caminho entre eles
+
+        ¨ Componentes conexas:
+            (Grafo não dirigido) Subgrafo conexo maximal no grafo
+
+        ¨ Componentes fortemente conexas:
+            (Grafo dirigido) Conjunto máximo de vértices tal que para todo par de vértices há um caminho entre eles
+
+    - Classes:
+        ¨ Árvores:
+            Acíclico, conexo, => n - 1 arestas
+            Raíz, folhas, filho, pai, descendentes, subárvores (um vértice e todos os seus descendentes)
+            A sua altura é a maior distância da raíz até uma de suas folhas
+
+        ¨ Floresta:
+            Conjunto de árvores (desconexo)
+
+        ¨ DAGs 
+            Grafo direcionado acíclico
+
+- Implementação:
+    ¨ Matriz de adjacência: 
+        vector <vector<bool>> M
+        Se M[a][b] é verdadeiro, tem uma aresta de a->bool
+
+    ¨ Floyd Warshall:
+        ¨ Lista de adjacência
+            vector<vector<int>> bss
+            bss[a] será uma lista com todos os vértices com aresta vinda de a
+
+- DFS (busca em profundidade):
+    1. Começar de um vértice
+    2. Marcar o vértice atual como visitado
+    3. Para cada vértice não visitado com uma aresta vinda do vértice atual, repetir 2 e 3 
