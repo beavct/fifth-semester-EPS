@@ -1,0 +1,66 @@
+Aula 9 - 15/05/2024 - DFS II e Tarjan:
+
+• Notação:
+    - C(G): quantidade de componentes conexas de G;
+    - Vértice de corte: C(G) < C(G-v);
+    - Ponte/ aresta de corte: C(G) < C(G-e);
+    - Componentes fortemente conexas (SSC): Componentes conexas em que se você tirar qualquer aresta a componente continua conexa;
+
+- IDs dos vértices:
+    Guardam a ordem em que você visitou os vértices, consegue ver quem é descendente de quem.
+
+- Low link:
+    The low-link value of a node is the smallest node ID reachable from that node when doing a depth-first search (DFS), including itself.
+    
+    - Tree edges:
+        Arestas da árvore do grafo G, que foi percorrida pela DFS;
+        - Menor ID -> maior ID.
+        - Você não consegue voltar com essas arestas. Ou seja, só pode usar as tree edges da subárvore do vértice que você está procurando o low link.
+
+    - Back edges;
+        Demais arestas que não fazem parte da árvore.
+        - Pode usar essas arestas de retorno para calcular o low link.
+
+    - Inicialmente: low_link[u] = id[u]
+    - Depois: min(low link dos filhos do u, ID/ de v, tal que existe uma back edge de u -> v)
+
+
+    - Se ID[u] <= Lo[v], para algum filho de u => u é um vértice de corte
+        Ou seja, só alcança vértices que estão "mais para baixo" na árvore/DFS
+
+        Lo[v] porque:
+
+        1 - - - 
+      /   \    /
+     5      2 / - - -     
+    /         \       \
+   6            3      \
+                  \     |
+                    4  - 
+
+        Nesse caso, o Lo[2] = 1, mas 2 É vértice de corte, por isso temos que considerar o Lo dos seus FILHOS.
+
+
+
+    - CASO | tratado com a contagem de tree edges:
+
+            1     O vértice 1 não é vértice de corte
+          /   \
+         2 - - 3
+        /
+       4    
+
+    - Achar ponte/aresta de corte:
+        - Toda ponte tem que ser uma tree edge;
+        - Uma back edge nunca vai ser uma ponte (porque a gnt já visitou aquele vértice antes, por meio de outra aresta);
+
+        - Lo[v] > ID[u], ou seja, u->v é ponte
+            Pois o filho v de u não conseguiu subir na árvore para ter um low link menor.
+
+
+    - Achar componente fortemente conexa:
+        Se a gente tirar as pontes do grafo, encontramos as componentes fortemente conexas.
+        - Acho que desse jeito tem que fazer vários tarjan, mas da para encontrar as componentes fortemente conexas utilizando um tarjan só.
+
+
+
