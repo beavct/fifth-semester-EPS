@@ -1,0 +1,25 @@
+Aula 10 - 22/05 - LCA:
+
+Aula LCA: https://noic.com.br/materiais-informatica/curso/graphs-04/ 
+- LCA (Lower Common Ancestor) - menor ancestral comum:
+    • Problema: Dada uma árvore enraizada com n vértices e dadps m pares de vértices, para cada par, qual é o LCA entre eles?
+
+    -> DFS, O(O+m*n)
+    -> Binary Lifting, O(nlog(n) + mlog(n))
+    -> HLD, O(n + mlog(n))
+    -> RMQ, O(nlog(n) + m*1)
+
+
+Aula BL: https://www.geeksforgeeks.org/binary-lifting-guide-for-competitive-programming/
+- Binary Lifting:
+    • Problema: Dado um tabuleiro com n casas e em que cada casa aponta para uma próxima, para cada uma das m consultas (a_2, k_2), para onde vamos iniciando e, a_i com k_i movimentos?
+
+    -> Computar a tabela de pulos, O(nlog(Max(k_i)))
+    -> Decompor k_i em potências de 2 e fazer os movimentos de tamanho correspondente partindo do a_i
+
+
+Aula ET: https://www.geeksforgeeks.org/euler-tour-tree/
+- Euler tour:
+    -> Representar uma árvore enraizada como uma sequência de vértices;
+    -> DFS partindo da raiz e registrando todavez que iniciamos, voltamos ou terminamos um vértice na sequência;
+    -> Podemos usar os tempos inicial e final para conferir se um vértice é ancestral de outro.

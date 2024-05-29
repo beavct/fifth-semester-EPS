@@ -1,0 +1,158 @@
+#include <bits/stdc++.h>
+
+using namespace std;
+
+#define oiee ios_base::sync_with_stdio(false); cin.tie(NULL);
+#define MAXP 32 
+#define ll long long
+
+vector<vector<int>> bss; // bss[a] representa a lista de adjacência do vértice a
+vector<array<int, MAXP>> ps; // matriz de "pulos": ps[a][j] representa o 2**j-ésimo ancestral do vértice a
+vector<int> ls, rs; // ls[a] e rs[a] representam respectivamente o tempo inicial e final da DFS no vértice a
+int c=0; // contador de tempos para a DFS
+
+void dfs(ll a, ll p) {
+
+	ps[a][0] = p; // incializa o primeiro ancestral de a como o pai na DFS
+	ls[a] = c++;
+
+	for(ll b : bss[a])
+		if(b != p)
+			dfs(b, a);
+
+	rs[a] = c++;
+
+}
+
+int main() {
+    oiee;
+
+    ll n, q;
+    //cin >> n >> q;
+    scanf("%lld %lld", &n, &q);
+
+	// define o tamanho dos vetores
+	bss.resize(n);
+	ps.resize(n, array<int, MAXP>{-1, -1});
+	ls.resize(n, -1);
+	rs.resize(n, -1);
+
+	// lê as arestas
+	for(ll i=1; i<n; i++) {
+        ll a; //cin >> a;
+        scanf("%lld", &a);
+        a--;
+        bss[a].push_back(i);  
+	}
+
+	// aplica a DFS partindo do vértice zero, fazendo com que a árvore seja enraizada nesse vértice
+    dfs(0,0);
+
+	// inicializa a matriz de "pulos"
+	for(ll j=0; j<MAXP-1; j++) {
+		for(ll i=0; i<n; i++)
+			ps[i][j+1] = ps[ps[i][j]][j];
+	}
+
+	// processa as consultas
+	for(ll i=0; i<q; i++) {
+
+		ll x, k; //cin >> x >> k;
+        scanf("%lld %lld", &x, &k);
+		x--; 
+        ll y=ps[x][0];
+
+        if(x==y){
+            //cout << "-1\n";
+            printf("-1\n");
+            continue;
+        }
+
+        bool flag=0;
+        //cout << "y " << y+1 << "\n";
+
+        while(k>0){
+            k--;
+
+            if(ls[x] >= ls[y] && rs[x] <= rs[y]) { // b é ancestral de a
+                if(k==0){
+                    ll aux=y+1;
+                    printf("%lld\n", aux);
+                    //cout << y+1 << '\n';
+                }
+                else  {
+                    if(y==ps[y][0]){
+                        //cout << "-1\n";
+                        printf("-1\n");
+                        break;
+                    }
+                    y=ps[y][0];
+                    //cout << "entrou aq " << y+1 << "\n";
+                }  
+            }
+            else{
+                // usamos a matriz do binary lifting para buscar pelo último ancestral de a que não é um ancestral de b
+                ll u = y;
+                for(ll j=MAXP-1; j>=0 && k > 0; j--) { // para cada tamanho de "pulo" começando pelo maior (essa ordem é importante)
+                    if(u==ps[u][j]){
+                        flag=1;
+                        break;
+                    }
+                    
+                    ll v = ps[u][j]; // v é o 2**j-ésimo ancestral de u
+                    //cout << "oie v " << v+1 << "\n";
+                    //cout << "oie u " << u+1 << "\n";
+                    if(ls[v] > ls[x] || rs[x] > rs[v]) {
+                        // v não é ancestral de b, podemos continuar a busca em v
+                        u = v;
+
+                        //cout << "trocou\n";
+                    }
+                    k--;
+                }
+                // ao final da busca, o menor ancestral comum de a e b é o ancestral direto (pai) de u
+                if(flag){
+                    //cout << "-1\n";
+                    printf("-1\n");
+                }
+                else{
+                    //cout << ps[u][0]+1 << '\n';
+                    ll aux = ps[u][0]+1;
+                    printf("%lld\n", aux);
+                }
+            }
+
+        }
+
+
+	}
+
+	return 0;	
+}
+
+/*
+8 9
+1 1 3 3 4 6 2
+7 1
+7 2
+7 3
+7 4
+7 5
+8 1
+8 2
+8 3
+1 1
+
+saida:
+
+
+6
+4
+3
+1
+-1
+2
+1
+-1
+-1
+*/
