@@ -1,0 +1,29 @@
+Aula 8 - 24/04/2024
+
+Continuação de grafos: BFS e Djisktra
+
+• Podemos usar a fila (queue) da STL
+    • Operações:
+        - .empty()
+        - .push() // O(1)
+        - .front() // O(1)
+        - .pop() // O(1)
+            Só tira, ele não retorna, se quisérmos ver antes de remover temos que usar o front.
+
+• Conjunto (set) da STL:
+    • Operações:
+        - .insert() // O(1)
+        - .begin() // O(1)
+        - .erase() // O(1)
+        - .find() // O(1)
+        - .empty() // O(1)
+        - .lower_bound() // O(1)
+
+
+• BSF - Busca em largura:
+    Visita todos os vértices adjacentes ao vértice atual, e segue para o próximo vértice, fazendo a mesma operação.
+
+
+abraços!
+
+

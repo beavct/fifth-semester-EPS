@@ -69,6 +69,8 @@ Há duas formas de selecionar quais testes queremos rodar:
         -comando: pytest -k <substring> <flags>
         -ex: pytest -k great -v
 
+
+    * NÃO FAZ ESSE TESTE PQ FUNCIONA MAS DA WARNING * 
     - Selecionar os testes a partir de markers.
         - Markers são usadas para setar atributos a funções de teste
         - Há markers inbutidos:
@@ -130,7 +132,7 @@ PARAR A EXECUÇÃO DE TESTE QUANDO N TESTES FALHAREM:
 
 
 RODAR TESTES EM PARALELO:
-Por padrão, o pytest roda os testes de forma sequencial. Em um senário real, o conjunto de testes poderia ser muito grande, e uma testagem de forma sequencial com funções mais complexas seria muito lenta.
+Por padrão, o pytest roda os testes de forma sequencial. Em um cenário real, o conjunto de testes poderia ser muito grande, e uma testagem de forma sequencial com funções mais complexas seria muito lenta.
 Para rodar os testes em paralelo:
 
     INSTAÇÃO:

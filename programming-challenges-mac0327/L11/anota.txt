@@ -1,0 +1,29 @@
+Aula 29/05 - Geometria:
+
+• Ponto no plano cartesiano:
+    - Criar estrutura de dados
+
+• Vetores:
+    •----------------------•     => vetor v = p2-p1
+    p1                     p2
+
+        (a,b) * (c,d)
+    - OP v1 * v2 = |v1| * |v2| * cos\theta = ac + bd (cross product);
+
+    - OP |v1 ^ v2| = |v1|*|v2|*sen\theta = ad + bc
+
+    - Temos um triângulo e sabemos que um dos lados mede a, outro mede b, e o angulo \alpha entre eles:
+        S (área do triângulo) = (a*b*sen\alpha)/2 (cross product dos dois vetores sobre 2)
+        S = |v1|*|v2|*sen\alpha
+        - O sinal depende do seno, já que estamos usando o módulo nos vetores, se quisérmos saber o sentido do ponto -> olhar o sinal da área:
+            - neg: b está abaixo de a.
+            - pos: b está acima de a.
+
+            - pensar no ciclo trigonométrico.
+
+    - Camêra em um poligono (não necessariamente convexo), ela consegue enxergar todo o poligono?
+        - Orientar as paredes, ver a posição relativa à camera
+
+• Retas:
+    - reta R = (p1, p2)
+
