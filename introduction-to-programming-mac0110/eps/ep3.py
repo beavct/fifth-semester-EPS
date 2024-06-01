@@ -23,6 +23,7 @@
   plágio ou irregular.
 """
 import random
+import unicodedata
 
 MAX_TENTATIVAS = 6
 NUM_LETRAS = 5
@@ -54,13 +55,13 @@ def main():
     while num_tentativas < MAX_TENTATIVAS and not ganhou:
         imprime_teclado(teclado)
         
-        chute = input("Digite a palavra : ").lower()
+        chute = remove_acentos(input("Digite a palavra : ").lower())
         
         feedback = checa_tentativa(palavra, chute)
         
         while chute not in lista_palavras or len(chute)!=NUM_LETRAS:
             print("Palavra inválida!")
-            chute = input("Digite a palavra : ").lower()
+            chute = remove_acentos(input("Digite a palavra : ").lower())
             feedback = checa_tentativa(palavra, chute)
             
         
@@ -128,7 +129,7 @@ def cria_lista_palavras(nome_arquivo):
     
     # se não tirar o espaço da erro
     for palavra in lista:
-        lista_palavras.append(palavra.strip().lower())
+        lista_palavras.append(remove_acentos(palavra.strip().lower()))
     
     return lista_palavras
 
@@ -193,6 +194,22 @@ def atualiza_teclado(chute, feedback, teclado):
 
 ##### FUNÇÕES EXTRAS (caso existam) #####
 
+#peguei do gabarito
+# aparemente nos teste s não foram utilizadas entradas com acento
+def remove_acentos(palavra):
+    'Remove caracteres nao ASCii.'
+    return ''.join(c for c in unicodedata.normalize('NFD', palavra)
+                  if unicodedata.category(c) != 'Mn')    
+    # nova_palavra = ''
+    # for letra in palavra:
+    #     if letra in 'áàâã': nova_palavra+='a'
+    #     elif letra in 'éê': nova_palavra+='e'
+    #     elif letra == 'í': nova_palavra+='i'
+    #     elif letra in 'óôõ': nova_palavra+='o'
+    #     elif letra in 'úü': nova_palavra+='u'
+    #     elif letra == 'ç': nova_palavra+='c'
+    #     else: nova_palavra+=letra
+    # return nova_palavra
 
 ##### NÃO ALTERE O TRECHO ABAIXO #####
 if __name__ == "__main__":
