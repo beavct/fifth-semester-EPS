@@ -27,3 +27,9 @@ Aula 29/05 - Geometria:
 • Retas:
     - reta R = (p1, p2)
 
+    - Saber se duas retas são paralelas, concorrentes, etc.
+
+    - Podemos achar o coef. angular e o coef. linear.
+
+    - Semelhança de triângulos
+
