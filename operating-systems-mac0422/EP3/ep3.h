@@ -32,23 +32,19 @@ typedef struct {
     Arquivo* root;
     int fat[MAX_BLOCKS];
     int bitmap[MAX_BLOCKS];
+    char* nome;
     size_t freeSpace;
 }Sistema_de_arquivos;
 
 
 /* FUNÇÕES PRINCIPAIS */
 void printa_arvore(Arquivo* root, int prof);
-Sistema_de_arquivos* inicia_sistema_de_arquivos(const char* arquivo);
-Sistema_de_arquivos* carrega_sistema_de_arquivos(const char* arquivo);
-void salva_sistema_de_arquivos(Sistema_de_arquivos *fs, const char *arquivo);
-void salva_arquivos(Arquivo* arq, FILE* file);
-Arquivo* carrega_arquivos(FILE* file);
 
 /* COMANDOS DE ARQUIVO */
 void monta(const char* arquivo);
 void copia(const char* origem,const char* destino);
-void criadir(const char* diretorio);
-void apagadir(const char* diretorio);
+void criadir(char* diretorio);
+void apagadir(char* diretorio);
 void mostra(const char* arquivo);
 void toca(const char* arquivo);
 void apaga(const char* arquivo);
@@ -58,3 +54,14 @@ void busca(const char* string);
 void status();
 void desmonta();
 void sai();
+
+/* Funções do sistema de arquivos - criar e carregar */
+Sistema_de_arquivos* inicia_sistema_de_arquivos(const char* arquivo);
+Sistema_de_arquivos* carrega_sistema_de_arquivos(const char* arquivo);
+void salva_sistema_de_arquivos(Sistema_de_arquivos *fs, const char *arquivo);
+void salva_arquivos(Arquivo* arq, FILE* file);
+Arquivo* carrega_arquivos(FILE* file);
+
+/* Funções auxiliares de diretório */
+void apaga_arquivos(Arquivo* arq);
+
