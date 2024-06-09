@@ -7,6 +7,7 @@
 #define MAX_NAME 256
 #define BLOCK_SIZE 4096  // 4KB
 #define MAX_BLOCKS 25600 // 100MB / 4KB
+#define MAX_FILE_CONTENT_SIZE 
 
 /* FUNÇÕES DO SHELL*/
 /* Loop principal de leitura de comandos enviados pelo usuário*/
@@ -25,6 +26,7 @@ typedef struct Arquivo{
     struct Arquivo* irmao;
     int ehDir;
     int root;
+    char* conteudo;
 }Arquivo;
 
 /* Estrutura do sistema de arquivos */
@@ -34,6 +36,8 @@ typedef struct {
     int bitmap[MAX_BLOCKS];
     char* nome;
     size_t freeSpace;
+    int quant_dir;
+    int quant_arq;
 }Sistema_de_arquivos;
 
 
@@ -42,13 +46,13 @@ void printa_arvore(Arquivo* root, int prof);
 
 /* COMANDOS DE ARQUIVO */
 void monta(const char* arquivo);
-void copia(const char* origem,const char* destino);
+void copia(char* origem,char* destino);
 void criadir(char* diretorio);
 void apagadir(char* diretorio);
-void mostra(const char* arquivo);
-void toca(const char* arquivo);
-void apaga(const char* arquivo);
-void lista(const char* diretorio);
+void mostra(char* arquivo);
+void toca(char* arquivo);
+void apaga(char* arquivo);
+void lista(char* diretorio);
 void atualizadb();
 void busca(const char* string);
 void status();
@@ -64,4 +68,13 @@ Arquivo* carrega_arquivos(FILE* file);
 
 /* Funções auxiliares de diretório */
 void apaga_arquivos(Arquivo* arq);
+
+/* Funções auxiliares do desmonta  */
+void libera_arvore(Arquivo *arq);
+
+/* Funções auxiliares do lista */
+void printa_recursivo(Arquivo *arq);
+
+/* Funções auxiliares da busca */
+void busca_recursivo(Arquivo* diretorio, const char* string, char* caminho_atual);
 

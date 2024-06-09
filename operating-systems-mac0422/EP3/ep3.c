@@ -36,7 +36,6 @@ void printa_arvore(Arquivo* root, int prof) {
     }
     printf("%s%s\n", root->nome, root->ehDir && !root->root ? "/" : "");
 
-    // Chama recursivamente para os filhos e irmãos
     printa_arvore(root->filho, prof + 1);
     printa_arvore(root->irmao, prof);
 }
@@ -47,8 +46,6 @@ void salva_arquivos(Arquivo* arq, FILE* file){
         fwrite(&flag_filho, sizeof(int), 1, file);
         return;
     }
-
-    printf("salvando %s\n", arq->nome);
 
     int flag_filho = 1;
     fwrite(&flag_filho, sizeof(int), 1, file);
@@ -64,7 +61,6 @@ void salva_arquivos(Arquivo* arq, FILE* file){
     fwrite(&arq->ehDir, sizeof(int), 1, file);
     fwrite(&arq->root, sizeof(int), 1, file);
 
-    // Recursivamente salva filhos e irmãos
     salva_arquivos(arq->filho, file);
     salva_arquivos(arq->irmao, file);
 
@@ -107,6 +103,8 @@ void salva_sistema_de_arquivos(Sistema_de_arquivos *fs, const char *arquivo){
 
     fwrite(fs->fat, sizeof(int), MAX_BLOCKS, file);
     fwrite(fs->bitmap, sizeof(int), MAX_BLOCKS, file);
+    //fwrite(fs->quant_dir);
+    //fwrite(fs->quant_arq);
 
     salva_arquivos(fs->root, file);
     fclose(file);
@@ -134,8 +132,8 @@ Sistema_de_arquivos* inicia_sistema_de_arquivos(const char* arquivo){
     fs->freeSpace = MAX_BLOCKS * BLOCK_SIZE;
     fs->nome = (char*)malloc(strlen(arquivo) + 1);
     strcpy(fs->nome, arquivo);
-
-    //salva_sistema_de_arquivos(fs, arquivo);
+    fs->quant_dir = 0;
+    fs->quant_arq = 0;
 
     return fs;
 }
@@ -152,6 +150,8 @@ Sistema_de_arquivos* carrega_sistema_de_arquivos(const char* arquivo){
 
     fread(fs->fat, sizeof(int), MAX_BLOCKS, file);
     fread(fs->bitmap, sizeof(int), MAX_BLOCKS, file);
+    //fread(fs->quant_dir, sizeof(int), 1, file);
+    //fread(fs->quant_arq, sizeof(int), 1, file);
     
     fs->nome = (char*)malloc(strlen(arquivo) + 1);
     strcpy(fs->nome, arquivo);
@@ -159,7 +159,6 @@ Sistema_de_arquivos* carrega_sistema_de_arquivos(const char* arquivo){
     fs->root = carrega_arquivos(file);
     fclose(file);
     return fs;
-
 }
 
 void monta(const char* arquivo){
@@ -177,39 +176,101 @@ void monta(const char* arquivo){
     fs_geral = fs;
 }
 
-/*
-testar
-copia ~/Desktop/fifth-semester-EPS/operating-systems-mac0422/EP3/README /oie1
-
-*/
-void copia(const char* origem, const char* destino){
-// Abrir o arquivo de origem no sistema de arquivos real
+// não to atualizando nada no fat e bimap
+void copia(char* origem,char* destino){
     FILE* origem_file = fopen(origem, "r");
     if (origem_file == NULL) {
         fprintf(stderr,"fopen :(\n");
         return;
     }
 
-   // Abrir o arquivo de destino no sistema de arquivos simulado para escrita
-    FILE* destino_file = fopen(destino, "wb");
-    if (destino_file == NULL) {
-        fprintf(stderr,"fopen :(\n");
+    fseek(origem_file, 0, SEEK_END);
+    long tamanho_arquivo = ftell(origem_file);
+    fseek(origem_file, 0, SEEK_SET);
+
+    if (tamanho_arquivo > 100 * 1024 * 1024) {
+        fprintf(stderr, "O tamanho do arquivo excede o limite de 100MB :(\n");
         fclose(origem_file);
         return;
     }
 
-    // Ler o conteúdo do arquivo de origem e escrevê-lo no arquivo de destino
-    char buffer[1024];
-    size_t bytes_lidos;
-    while ((bytes_lidos = fread(buffer, 1, sizeof(buffer), origem_file)) > 0) {
-        fwrite(buffer, 1, bytes_lidos, destino_file);
+    // Infos do arquivo
+    Arquivo* novo_arquivo = (Arquivo*) malloc(sizeof(Arquivo));
+
+    novo_arquivo->tamanho_bytes = tamanho_arquivo; 
+    novo_arquivo->tempo_criacao = time(NULL);
+    novo_arquivo->tempo_ult_mod = novo_arquivo->tempo_criacao;
+    novo_arquivo->tempo_ult_acess = novo_arquivo->tempo_criacao;
+    novo_arquivo->filho = NULL;
+    novo_arquivo->irmao = NULL;
+    novo_arquivo->ehDir = 0;
+    novo_arquivo->root = 0; 
+
+    novo_arquivo->conteudo = (char*)malloc(sizeof(char)*tamanho_arquivo); 
+
+    char* nome_arq = strrchr(origem, '/');
+    if (nome_arq == NULL) {
+        strcpy(novo_arquivo->nome, origem);
+    } else {
+        strcpy(novo_arquivo->nome, nome_arq + 1);
     }
 
-    // Fechar os arquivos
-    fclose(origem_file);
-    fclose(destino_file);
+    if(strcmp(destino, "/") == 0){
+        Arquivo* cur_diretorio = fs_geral->root->filho;
 
-    printf("Arquivo copiado com sucesso de %s para %s\n", origem, destino);   
+        while(cur_diretorio->irmao != NULL){
+            cur_diretorio = cur_diretorio->irmao;
+        }   
+
+        cur_diretorio->irmao = novo_arquivo;
+
+        return;
+    }
+
+    // Percorrer os tokens para encontrar o diretório correto
+    char* save_destino = (char*)malloc(strlen(destino) + 1);
+    strcpy(save_destino, destino);
+    char* path_auxiliar1 = strtok(destino, "/");
+    char* path_auxiliar2 = path_auxiliar1;
+    Arquivo* cur_diretorio = fs_geral->root;
+
+    while(path_auxiliar2 != NULL){
+        Arquivo* cur_auxiliar = cur_diretorio->filho;
+
+        while(cur_auxiliar->irmao != NULL && strcmp(path_auxiliar1,cur_auxiliar->nome)){
+            cur_auxiliar = cur_auxiliar->irmao;
+        }
+
+        cur_diretorio = cur_auxiliar;
+
+        path_auxiliar1 = path_auxiliar2;
+        path_auxiliar2 = strtok(NULL, "/");
+    }
+
+    while(strcmp(path_auxiliar1, cur_diretorio->nome) != 0 && cur_diretorio != NULL){
+        cur_diretorio = cur_diretorio->irmao;
+    }
+
+    // Adicionar na árvore de arquivos
+    if(cur_diretorio->filho == NULL) {
+        cur_diretorio->filho = novo_arquivo;
+    }else{
+        Arquivo* temp = cur_diretorio->filho;
+        while (temp->irmao != NULL) {
+            temp = temp->irmao;
+        }
+        temp->irmao = novo_arquivo;
+    }
+
+    size_t bytes_lidos = fread(novo_arquivo->conteudo, 1, tamanho_arquivo, origem_file);
+    if (bytes_lidos != tamanho_arquivo) {
+        fprintf(stderr, "Leitura :(\n");
+        fclose(origem_file);
+        free(novo_arquivo->conteudo);
+        free(novo_arquivo);
+        return;
+    }
+    printf("Arquivo copiado com sucesso de %s para %s :)\n", origem, save_destino);   
 }
 
 // ta criando o diretorio, não sei se precisa salvar mais infos
@@ -268,10 +329,18 @@ void criadir(char* diretorio){
     else{
         cur_diretorio = cur_diretorio->filho;
 
-        while(cur_diretorio->irmao!=NULL)
+        while(cur_diretorio->irmao!=NULL && cur_diretorio->irmao->ehDir)
             cur_diretorio = cur_diretorio->irmao;
         
-        cur_diretorio->irmao = novo_diretorio;
+        if(cur_diretorio->irmao == NULL)
+            cur_diretorio->irmao = novo_diretorio;
+        else{
+            // Para que os diretórios fiquem sempre antes dos arquivos regulares
+            Arquivo* aux = cur_diretorio->irmao;
+
+            cur_diretorio->irmao = novo_diretorio;
+            novo_diretorio->irmao = aux;
+        }
     }
 
     printf("Diretório %s criado com sucesso :).\n", novo_diretorio->nome);
@@ -382,37 +451,273 @@ void apagadir(char* diretorio) {
     free(cur_diretorio);
 }
 
+// aqui não precisa escrever no fat e bitmap
+void mostra(char* arquivo){
+    // Percorrer os tokens para encontrar o diretório correto
+    char* path_auxiliar1 = strtok(arquivo, "/");
+    char* path_auxiliar2 = path_auxiliar1;
+    Arquivo* cur_arquivo = fs_geral->root;
 
-void mostra(const char* arquivo){
-    
+    while(path_auxiliar2 != NULL){
+        Arquivo* cur_auxiliar = cur_arquivo->filho;
+
+        while(cur_auxiliar->irmao != NULL && strcmp(path_auxiliar1,cur_auxiliar->nome)){
+            cur_auxiliar = cur_auxiliar->irmao;
+        }
+
+        cur_arquivo = cur_auxiliar;
+
+        path_auxiliar1 = path_auxiliar2;
+        path_auxiliar2 = strtok(NULL, "/");
+    }
+
+    while(strcmp(path_auxiliar1, cur_arquivo->nome) != 0 && cur_arquivo != NULL){
+        cur_arquivo = cur_arquivo->irmao;
+    }
+
+    printf("%s \n%s\n", cur_arquivo->nome, cur_arquivo->conteudo);
 }
 
-void toca(const char* arquivo){
-    
+// aqui não precisa escrever no fat e bitmap
+// ta dando segfault
+void toca(char* arquivo){
+    // Percorrer os tokens para encontrar o diretório correto
+    char* save = (char*)malloc(sizeof(strlen(arquivo)+1));
+    strcpy(save, arquivo);
+    char* path_auxiliar1 = strtok(arquivo, "/");
+    char* path_auxiliar2 = path_auxiliar1;
+    Arquivo* cur_arquivo = fs_geral->root;
+    Arquivo* anterior = fs_geral->root;
+
+    int flag_parentesco = 1;
+
+    while(path_auxiliar2 != NULL){
+        Arquivo* cur_auxiliar = cur_arquivo->filho;
+        anterior = cur_arquivo;
+        flag_parentesco = 1;
+
+        printf("olhando %s\n", cur_auxiliar->nome);
+        printf("sendo %s\n", path_auxiliar1);
+
+        while(cur_auxiliar != NULL && strcmp(path_auxiliar2,cur_auxiliar->nome)){
+            anterior = cur_auxiliar;
+            cur_auxiliar = cur_auxiliar->irmao;
+            flag_parentesco = 2;
+        }
+        
+        cur_arquivo = cur_auxiliar;
+
+        if(cur_auxiliar == NULL){
+            break;
+        }
+
+        path_auxiliar1 = path_auxiliar2;
+        path_auxiliar2 = strtok(NULL, "/");
+    }
+
+    while(cur_arquivo != NULL && strcmp(path_auxiliar1, cur_arquivo->nome) != 0){
+        anterior = cur_arquivo;
+        cur_arquivo = cur_arquivo->irmao;
+        flag_parentesco=2;
+    }
+
+    // Se o arquivo existe, muda o instante do último acesso
+    if(cur_arquivo != NULL){
+        cur_arquivo->tempo_ult_acess = time(NULL);
+    }   
+    // Se o arquivo não existe, cria um novo arquivo 
+    else{
+        Arquivo* novo_arquivo = (Arquivo*)malloc(sizeof(Arquivo));
+        char* nome_arq = strrchr(save, '/'); 
+        if (nome_arq != NULL) {
+            strcpy(novo_arquivo->nome, nome_arq+1); 
+        } else {
+            strcpy(novo_arquivo->nome, save);
+        }
+        novo_arquivo->irmao= NULL;
+        novo_arquivo->filho= NULL;
+        novo_arquivo->ehDir = 0;
+        novo_arquivo->root = 0;
+        novo_arquivo->tamanho_bytes = 0;
+        novo_arquivo->tempo_criacao = time(NULL);
+        novo_arquivo->tempo_ult_acess = novo_arquivo->tempo_criacao;
+        novo_arquivo->tempo_ult_mod = novo_arquivo->tempo_criacao;
+        novo_arquivo->conteudo = (char*)malloc(sizeof(char));
+        novo_arquivo->conteudo = "";
+
+        if(flag_parentesco == 1)
+            anterior->filho = novo_arquivo;
+        else
+            anterior->irmao = novo_arquivo;
+    }
 }
 
-void apaga(const char* arquivo){
-    
+void apaga(char* arquivo){
+    // Percorrer os tokens para encontrar o diretório correto
+    char* path_auxiliar1 = strtok(arquivo, "/");
+    char* path_auxiliar2 = path_auxiliar1;
+    Arquivo* cur_arquivo = fs_geral->root;
+    Arquivo* anterior = cur_arquivo; 
+
+    int flag_parentesco = 1;
+
+    while(path_auxiliar2 != NULL){
+        Arquivo* cur_auxiliar = cur_arquivo->filho;
+        anterior = cur_arquivo;
+        flag_parentesco = 1;
+
+        // tem alguma função usando path_auziliar1, achar ela e ver se n da segfault
+        while(cur_auxiliar->irmao != NULL && strcmp(path_auxiliar2,cur_auxiliar->nome)){
+            anterior = cur_auxiliar;
+            cur_auxiliar = cur_auxiliar->irmao;
+            flag_parentesco = 2;
+        }
+
+        cur_arquivo = cur_auxiliar;
+
+        path_auxiliar1 = path_auxiliar2;
+        path_auxiliar2 = strtok(NULL, "/");
+    }
+
+    while(strcmp(path_auxiliar1, cur_arquivo->nome) != 0 && cur_arquivo != NULL){
+        cur_arquivo = cur_arquivo->irmao;
+        flag_parentesco = 2;
+    }   
+
+    Arquivo* aux = cur_arquivo->irmao; 
+
+    if(flag_parentesco == 1){
+        anterior->filho = aux;
+    }
+    else{
+        anterior->irmao = aux;
+    }
+
+    free(cur_arquivo->conteudo);
+    free(cur_arquivo);
+
 }
 
-void lista(const char* diretorio){
-    
+void printa_recursivo(Arquivo *arq){
+    if(arq == NULL)
+        return;
+
+    printf("%s%s\n", arq->nome, arq->ehDir && !arq->root ? "/" : "");
+    printa_recursivo(arq->filho);
+    printa_recursivo(arq->irmao);
+}
+
+// aqui não precisa escrever no fat e bitmap
+void lista(char* diretorio){
+    // Percorrer os tokens para encontrar o diretório correto
+    char* path_auxiliar1 = strtok(diretorio, "/");
+    char* path_auxiliar2 = path_auxiliar1;
+    Arquivo* cur_diretorio = fs_geral->root;
+
+    if(strcmp(diretorio, "/") !=0){
+        while(path_auxiliar2 != NULL){
+            Arquivo* cur_auxiliar = cur_diretorio->filho;
+
+            while(cur_auxiliar->irmao != NULL && strcmp(path_auxiliar1,cur_auxiliar->nome)){
+                cur_auxiliar = cur_auxiliar->irmao;
+            }
+
+            cur_diretorio = cur_auxiliar;
+
+            path_auxiliar1 = path_auxiliar2;
+            path_auxiliar2 = strtok(NULL, "/");
+        }
+
+        while(strcmp(path_auxiliar1, cur_diretorio->nome) != 0 && cur_diretorio != NULL){
+            cur_diretorio = cur_diretorio->irmao;
+        }    
+    }
+
+    Arquivo* cur_arquivo = cur_diretorio->filho;
+
+    printa_recursivo(cur_arquivo);
 }
 
 void atualizadb(){
     salva_sistema_de_arquivos(fs_geral, fs_geral->nome);
 }
 
-void busca(const char* string){
-    
+// não sei se esse resultado esta correto, confirmar depois
+void busca_recursivo(Arquivo* diretorio, const char* string, char* caminho_atual){
+    if (diretorio == NULL) {
+        return;
+    }
+
+    size_t tamanho_caminho = strlen(caminho_atual);
+    tamanho_caminho += strlen(diretorio->nome) + 2; // 2 para a barra e o caractere nulo
+
+    char* novo_caminho = (char*)malloc(tamanho_caminho);
+    strcpy(novo_caminho, caminho_atual);
+    strcat(novo_caminho, diretorio->nome);
+    if(!diretorio->root)
+        strcat(novo_caminho, "/");
+
+    // Verificar se o nome do diretório contém a string de busca
+    if (strstr(diretorio->nome, string) != NULL) {
+        printf("%s\n", novo_caminho);
+    }
+
+    // Verificar se algum arquivo filho contém a string de busca
+    Arquivo* arquivo_atual = diretorio->filho;
+    while (arquivo_atual != NULL) {
+        if (strstr(arquivo_atual->nome, string) != NULL) {
+            printf("%s%s\n", caminho_atual, arquivo_atual->nome);
+        }
+        // Se o arquivo atual for um diretório, chamar recursivamente a função
+        if (arquivo_atual->ehDir) {
+            busca_recursivo(arquivo_atual, string, novo_caminho);
+        }
+        arquivo_atual = arquivo_atual->irmao;
+    }
+
+    free(novo_caminho);
 }
 
+// aqui não precisa escrever no fat e bitmap
+void busca(const char* string){
+    busca_recursivo(fs_geral->root, string, "");
+}
+
+// aqui não precisa escrever no fat e bitmap
 void status(){
     
 }
 
+void libera_arvore(Arquivo *arq){
+    if (arq == NULL) return;
+
+    libera_arvore(arq->filho);
+    libera_arvore(arq->irmao);
+
+    free(arq);
+}
+
 void desmonta(){
-    
+    if (fs_geral == NULL) {
+        printf("Nenhum sistema de arquivos montado para desmontar.\n");
+        return;
+    }
+
+    //atualizadb();
+
+    free(fs_geral->nome);
+    for(int i=0; i<MAX_BLOCKS; i++){
+        fs_geral->fat[i] = -1;
+        fs_geral->bitmap[i] = 0;
+    }
+
+    libera_arvore(fs_geral->root);
+
+    free(fs_geral);
+
+    fs_geral = NULL;
+
+    printf("Sistema de arquivos desmontado :)\n");  
 }
 
 void sai(){
@@ -422,7 +727,6 @@ void sai(){
 void main_loop(){
     static char *line_read = (char *)NULL;
 
-    /* Initialize history */
     using_history();  
 
     char prompt[8] = "{ep3}: ";
@@ -433,7 +737,6 @@ void main_loop(){
 
         char *firstArg = strtok(line_read, " ");
 
-        /* Comandos internos */
         if(!strcmp(firstArg, "monta")){
             
             char* arquivo = strtok(NULL, " ");
@@ -515,8 +818,9 @@ void main_loop(){
 
         free(line_read);
 
-
-        printa_arvore(fs_geral->root, 0);
+        // Para testes -> comentar para realizar a entrega
+        if(fs_geral != NULL)
+            printa_arvore(fs_geral->root, 0);
     }
 
 }
