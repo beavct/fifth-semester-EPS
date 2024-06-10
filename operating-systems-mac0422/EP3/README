@@ -6,27 +6,22 @@ E-mail: beatrizvianacosta@usp.br
 
 
 DESCRIÇÃO:
-O presente trabalho trata-se de um simulador de ciclismo na modalidade corrida por eliminação.
-Ou seja, o usuário informa qual será com comprimento do velódromo em "d" metros e quantos "k" ciclistas estarão participando da corrida, e o EP, de maneira aleatória e concorrente, simula essa modalidade com o critério Win and Out. Para isso o simulador faz o uso de pthreads, semáforos genéricos e semáforos binários.
-O simulador, a cada volta, apresenta um relatório indicando o ID e posição de cada ciclista no momento, além disso, ao fim da simulaçõ, apresenta um resumo de toda a simulação da modalidade: um placar geral e um indicativo de quais ciclistas quebraram durante a prova.
-O programa também acompanha um PDF relatando experimentos, analizando o uso de memória e o tempo. 
+O presente exercício-programa se trata de um simulador de arquivos com diversos comandos de criação e exclusão de diretórios e arquivos.
+O trabalho trata apenas arquivos de texto puro, e não realiza tratamento de erros de comando, ou seja, é esperado que o usuário utilize apenas comandos válidos em ordens válidas.
 
 
 
 COMO EXECUTAR:
 Para a compilação do programa, basta executar o seguinte comando no terminal:
 ~ make
-Dessa forma, um executável nomeado "ep2" será criado.
+Dessa forma, um executável nomeado "ep3" será criado.
 
 Para executar o simulador, é necessário usar o seguinte padrão de entrada:
-~ ./ep2 <d> <k> <-debug>
+~ ./ep3
 
-Onde "d" é o comprimento do velódromo em metros, "k" é a quantidade de ciclistas e "-debug", um argumento opcional, que quando passado, faz com que o velódromo seja impresso na tela a cada 60ms.
+Assim, um simulador de terminal é iniciado, e os comandos indicados no enunciado podem ser utilizados. No sistema de arquivo simulados, os arquivos regulares não possuem nenhuma indicação especial, já os diretórios são sempre acompanhados de "/" no final de seu nome.
+Nomes de até 256 caracteres são aceitos tanto para os arquivos regulares como para os diretórios.
 
-No relatório por volta, é informado o ID do ciclista e também a sua posição no eixo x (que pertence ao intervalo [0, d-1]). Um ciclista retardatário, ou seja, que está em uma volta anterior a atual, é indicado por um "[RET]". 
-Além disso, caso algum ciclista quebre durante a simulação, essa informação é exibida na tela no momento exato da quebra.
-
-Ao fim da simulação, um placar é exibido em ordem crescente de posição, e também um relatório de quais foram os ciclistas que quebraram durante a simulação.
 
 
 

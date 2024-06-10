@@ -35,14 +35,15 @@ typedef struct {
     int fat[MAX_BLOCKS];
     int bitmap[MAX_BLOCKS];
     char* nome;
-    size_t freeSpace;
+    size_t espaco_livre;
+    size_t espaco_desperdicado;
     int quant_dir;
     int quant_arq;
 }Sistema_de_arquivos;
 
 
 /* FUNÇÕES PRINCIPAIS */
-void printa_arvore(Arquivo* root, int prof);
+void printa_arvore(Arquivo* root, int prof, int ehUlt);
 
 /* COMANDOS DE ARQUIVO */
 void monta(const char* arquivo);
@@ -77,4 +78,7 @@ void printa_recursivo(Arquivo *arq);
 
 /* Funções auxiliares da busca */
 void busca_recursivo(Arquivo* diretorio, const char* string, char* caminho_atual);
+
+/* Função auxiliar geral*/
+void libera_espaco(Arquivo* arq);
 

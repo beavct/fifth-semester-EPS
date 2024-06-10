@@ -14,30 +14,34 @@
 Sistema_de_arquivos* fs_geral = NULL;
 
 // arrumar essa função aqui pra printar mais bonito
-void printa_arvore(Arquivo* root, int prof) {
+void printa_arvore(Arquivo* root, int prof, int ehUlt) {
     if (root == NULL) return;
 
     // Imprime a identação para a profundidade atual
-    for (int i = 0; i < prof - 1; i++) {
-        if (i == prof - 2) {
-            printf("├── ");
+    for (int i = 0; i < prof; i++) {
+        if (i == prof - 1) {
+            if (ehUlt) {
+                printf("└── ");
+            } else {
+                printf("├── ");
+            }
         } else {
             printf("│   ");
         }
     }
 
     // Imprime o nome do arquivo/diretório
-    if (prof > 0) {
-        if (root->irmao == NULL) {
-            printf("└── ");
-        } else {
-            printf("├── ");
-        }
-    }
     printf("%s%s\n", root->nome, root->ehDir && !root->root ? "/" : "");
 
-    printa_arvore(root->filho, prof + 1);
-    printa_arvore(root->irmao, prof);
+    // Imprime os filhos
+    if (root->filho != NULL) {
+        printa_arvore(root->filho, prof + 1, root->filho->irmao == NULL);
+    }
+
+    // Imprime os irmãos
+    if (root->irmao != NULL) {
+        printa_arvore(root->irmao, prof, root->irmao->irmao == NULL);
+    }
 }
 
 void salva_arquivos(Arquivo* arq, FILE* file){
@@ -103,8 +107,10 @@ void salva_sistema_de_arquivos(Sistema_de_arquivos *fs, const char *arquivo){
 
     fwrite(fs->fat, sizeof(int), MAX_BLOCKS, file);
     fwrite(fs->bitmap, sizeof(int), MAX_BLOCKS, file);
-    //fwrite(fs->quant_dir);
-    //fwrite(fs->quant_arq);
+    fwrite(&fs->quant_dir, sizeof(int), 1, file);
+    fwrite(&fs->quant_arq, sizeof(int), 1, file);
+    fwrite(&fs->espaco_livre, sizeof(size_t), 1, file);
+    fwrite(&fs->espaco_desperdicado, sizeof(size_t), 1, file);
 
     salva_arquivos(fs->root, file);
     fclose(file);
@@ -129,7 +135,8 @@ Sistema_de_arquivos* inicia_sistema_de_arquivos(const char* arquivo){
         fs->bitmap[i] = 0;
     }
 
-    fs->freeSpace = MAX_BLOCKS * BLOCK_SIZE;
+    fs->espaco_livre = MAX_BLOCKS * BLOCK_SIZE;
+    fs->espaco_desperdicado = 0;
     fs->nome = (char*)malloc(strlen(arquivo) + 1);
     strcpy(fs->nome, arquivo);
     fs->quant_dir = 0;
@@ -150,8 +157,10 @@ Sistema_de_arquivos* carrega_sistema_de_arquivos(const char* arquivo){
 
     fread(fs->fat, sizeof(int), MAX_BLOCKS, file);
     fread(fs->bitmap, sizeof(int), MAX_BLOCKS, file);
-    //fread(fs->quant_dir, sizeof(int), 1, file);
-    //fread(fs->quant_arq, sizeof(int), 1, file);
+    fread(&fs->quant_dir, sizeof(int), 1, file);
+    fread(&fs->quant_arq, sizeof(int), 1, file);
+    fread(&fs->espaco_livre, sizeof(size_t), 1, file);
+    fread(&fs->espaco_desperdicado, sizeof(size_t), 1, file);
     
     fs->nome = (char*)malloc(strlen(arquivo) + 1);
     strcpy(fs->nome, arquivo);
@@ -166,12 +175,12 @@ void monta(const char* arquivo){
 
     if(fs == NULL){
         fs = inicia_sistema_de_arquivos(arquivo);
-        printf("Sistema de arquivos %s criado.\n", arquivo);
+        printf("Sistema de arquivos %s criado :)\n", arquivo);
     }
     else
-        printf("Sistema de arquivos montado a partir do arquivo %s.\n", arquivo);
+        printf("Sistema de arquivos montado a partir do arquivo %s :)\n", arquivo);
 
-    printa_arvore(fs->root, 0);
+    printa_arvore(fs->root, 0, 1);
 
     fs_geral = fs;
 }
@@ -184,16 +193,44 @@ void copia(char* origem,char* destino){
         return;
     }
 
+    // Verificações de tamanho do arquivo e se há espaço o suficiente no sistema de arquivos
     fseek(origem_file, 0, SEEK_END);
     long tamanho_arquivo = ftell(origem_file);
     fseek(origem_file, 0, SEEK_SET);
 
-    if (tamanho_arquivo > 100 * 1024 * 1024) {
+    if(tamanho_arquivo > 100 * 1024 * 1024) {
         fprintf(stderr, "O tamanho do arquivo excede o limite de 100MB :(\n");
         fclose(origem_file);
         return;
     }
 
+    int blocos_necessarios = (tamanho_arquivo + 4095) / 4096;
+    //printf("quant blocos %d\n", blocos_necessarios);
+    //printf("espaco livre %ld\n", fs_geral->espaco_livre);
+
+    if(fs_geral->espaco_livre < (size_t)blocos_necessarios * 4096) {
+        fprintf(stderr, "Espaço insuficiente no sistema de arquivos :(\n");
+        fclose(origem_file);
+        return;
+    }
+
+    int blocos_livres = 0;
+    for(int i = 0; i < MAX_BLOCKS; i++) {
+        if (fs_geral->bitmap[i] == 0) {
+            blocos_livres++;
+            if (blocos_livres >= blocos_necessarios) {
+                break;
+            }
+        }
+    }
+    if(blocos_livres < blocos_necessarios) {
+        fprintf(stderr, "Não há blocos livres suficientes no sistema de arquivos :(\n");
+        fclose(origem_file);
+        return;
+    }
+
+    char* save_destino = (char*)malloc(strlen(destino) + 1);
+    strcpy(save_destino, destino);
     // Infos do arquivo
     Arquivo* novo_arquivo = (Arquivo*) malloc(sizeof(Arquivo));
 
@@ -209,71 +246,109 @@ void copia(char* origem,char* destino){
     novo_arquivo->conteudo = (char*)malloc(sizeof(char)*tamanho_arquivo); 
 
     char* nome_arq = strrchr(origem, '/');
-    if (nome_arq == NULL) {
+    if(nome_arq == NULL) {
         strcpy(novo_arquivo->nome, origem);
-    } else {
+    } 
+    else{
         strcpy(novo_arquivo->nome, nome_arq + 1);
     }
 
+    // Quando quer copiar diretamente para o diretório "/"
     if(strcmp(destino, "/") == 0){
-        Arquivo* cur_diretorio = fs_geral->root->filho;
+        if(fs_geral->root->filho == NULL)
+            fs_geral->root->filho = novo_arquivo;
+        else{
+            Arquivo* cur_diretorio = fs_geral->root->filho;
 
-        while(cur_diretorio->irmao != NULL){
+            while(cur_diretorio->irmao != NULL){
+                cur_diretorio = cur_diretorio->irmao;
+            }   
+
+            cur_diretorio->irmao = novo_arquivo;
+        }
+    }
+    else{
+        // Percorrer os tokens para encontrar o diretório correto
+        char* path_auxiliar1 = strtok(destino, "/");
+        char* path_auxiliar2 = path_auxiliar1;
+        Arquivo* cur_diretorio = fs_geral->root;
+
+        while(path_auxiliar2 != NULL){
+            Arquivo* cur_auxiliar = cur_diretorio->filho;
+
+            while(cur_auxiliar->irmao != NULL && strcmp(path_auxiliar1,cur_auxiliar->nome)){
+                cur_auxiliar = cur_auxiliar->irmao;
+            }
+
+            cur_diretorio = cur_auxiliar;
+
+            path_auxiliar1 = path_auxiliar2;
+            path_auxiliar2 = strtok(NULL, "/");
+        }
+
+        while(strcmp(path_auxiliar1, cur_diretorio->nome) != 0 && cur_diretorio != NULL){
             cur_diretorio = cur_diretorio->irmao;
-        }   
-
-        cur_diretorio->irmao = novo_arquivo;
-
-        return;
-    }
-
-    // Percorrer os tokens para encontrar o diretório correto
-    char* save_destino = (char*)malloc(strlen(destino) + 1);
-    strcpy(save_destino, destino);
-    char* path_auxiliar1 = strtok(destino, "/");
-    char* path_auxiliar2 = path_auxiliar1;
-    Arquivo* cur_diretorio = fs_geral->root;
-
-    while(path_auxiliar2 != NULL){
-        Arquivo* cur_auxiliar = cur_diretorio->filho;
-
-        while(cur_auxiliar->irmao != NULL && strcmp(path_auxiliar1,cur_auxiliar->nome)){
-            cur_auxiliar = cur_auxiliar->irmao;
         }
 
-        cur_diretorio = cur_auxiliar;
-
-        path_auxiliar1 = path_auxiliar2;
-        path_auxiliar2 = strtok(NULL, "/");
-    }
-
-    while(strcmp(path_auxiliar1, cur_diretorio->nome) != 0 && cur_diretorio != NULL){
-        cur_diretorio = cur_diretorio->irmao;
-    }
-
-    // Adicionar na árvore de arquivos
-    if(cur_diretorio->filho == NULL) {
-        cur_diretorio->filho = novo_arquivo;
-    }else{
-        Arquivo* temp = cur_diretorio->filho;
-        while (temp->irmao != NULL) {
-            temp = temp->irmao;
+        // Adicionar na árvore de arquivos
+        if(cur_diretorio->filho == NULL) {
+            cur_diretorio->filho = novo_arquivo;
         }
-        temp->irmao = novo_arquivo;
+        else{
+            Arquivo* temp = cur_diretorio->filho;
+            while (temp->irmao != NULL) {
+                temp = temp->irmao;
+            }
+            temp->irmao = novo_arquivo;
+        }
     }
 
     size_t bytes_lidos = fread(novo_arquivo->conteudo, 1, tamanho_arquivo, origem_file);
-    if (bytes_lidos != tamanho_arquivo) {
+    if(bytes_lidos != (size_t)tamanho_arquivo) {
         fprintf(stderr, "Leitura :(\n");
         fclose(origem_file);
         free(novo_arquivo->conteudo);
         free(novo_arquivo);
         return;
     }
-    printf("Arquivo copiado com sucesso de %s para %s :)\n", origem, save_destino);   
+
+    // VERIFICAR A PARTIR DAQ SE TA CERTO
+
+    // Atualiza o bitmap e fat
+    int bloco_atual = 0;
+    int ultimo_bloco = -1;
+    int blocos_usados = 0;
+
+    for(long offset = 0; offset < tamanho_arquivo; offset += BLOCK_SIZE) {
+        // Encontrar um bloco livre no bitmap
+        while(bloco_atual < MAX_BLOCKS && fs_geral->bitmap[bloco_atual] != 0) {
+            bloco_atual++;
+        }
+
+        // Marcar o bloco como usado no bitmap
+        fs_geral->bitmap[bloco_atual] = 1;
+        if(ultimo_bloco != -1) {
+            fs_geral->fat[ultimo_bloco] = bloco_atual;
+        }
+        ultimo_bloco = bloco_atual;
+
+        blocos_usados++;
+    }
+
+    // Marcar o final da cadeia de blocos na FAT
+    if(ultimo_bloco != -1) {
+        fs_geral->fat[ultimo_bloco] = -1;
+    }
+
+    fs_geral->espaco_livre -= blocos_usados * BLOCK_SIZE;
+    fs_geral->espaco_desperdicado += (blocos_usados * BLOCK_SIZE) - tamanho_arquivo;
+
+    printf("Arquivo copiado com sucesso de %s para %s :)\n", origem, save_destino); 
+
+    fs_geral->quant_arq++;  
 }
 
-// ta criando o diretorio, não sei se precisa salvar mais infos
+// Acho que tá ok
 void criadir(char* diretorio){
     Arquivo* cur_diretorio = fs_geral->root;
 
@@ -305,6 +380,8 @@ void criadir(char* diretorio){
     novo_diretorio->tempo_ult_acess = novo_diretorio->tempo_criacao;
     novo_diretorio->tempo_ult_mod = novo_diretorio->tempo_criacao;
 
+    // VERIFICAR SE ESTA CORRETO
+
     // Encontrar um bloco livre no bitmap
     int bloco_livre = -1;
     for (int i = 0; i < MAX_BLOCKS; ++i) {
@@ -316,7 +393,7 @@ void criadir(char* diretorio){
     }
 
     if (bloco_livre == -1) {
-        printf("Não há blocos livres para criar o diretório :(.\n");
+        printf("Não há blocos livres para criar o diretório :(\n");
         free(novo_diretorio);
         return;
     }
@@ -326,6 +403,13 @@ void criadir(char* diretorio){
 
     if(cur_diretorio->filho == NULL)
         cur_diretorio->filho = novo_diretorio;
+    // hardcoded
+    else if(strcmp(cur_diretorio->nome,"/")==0 && !cur_diretorio->filho->ehDir){
+        // Para que os diretórios fiquem sempre antes dos arquivos regulares
+        Arquivo* aux = cur_diretorio->filho;
+        cur_diretorio->filho = novo_diretorio;
+        novo_diretorio->irmao = aux;
+    }
     else{
         cur_diretorio = cur_diretorio->filho;
 
@@ -343,8 +427,35 @@ void criadir(char* diretorio){
         }
     }
 
-    printf("Diretório %s criado com sucesso :).\n", novo_diretorio->nome);
+    fs_geral->espaco_livre -= BLOCK_SIZE;
 
+    printf("Diretório %s criado com sucesso :)\n", novo_diretorio->nome);
+
+    fs_geral->quant_dir++;
+
+}
+
+// verificar se esta correto
+void libera_espaco(Arquivo* arq){
+    if (arq == NULL || arq->ehDir) 
+        return;
+
+    int blocos_usados = (arq->tamanho_bytes + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    int bloco_atual = 0;
+    int blocos_liberados = 0;
+
+    for (int i = 0; i < MAX_BLOCKS; ++i) {
+        if (fs_geral->fat[i] != -1) {
+            int bloco_proximo = fs_geral->fat[i];
+            fs_geral->fat[i] = -1;
+            fs_geral->bitmap[i] = 0;
+            fs_geral->espaco_livre += BLOCK_SIZE;
+            blocos_liberados++;
+            if (blocos_liberados == blocos_usados) break;
+        }
+    }
+
+    fs_geral->espaco_desperdicado -= (blocos_liberados * BLOCK_SIZE) - arq->tamanho_bytes;
 }
 
 // não sei se ta atualizando o fat e bitmap de forma correta
@@ -355,19 +466,23 @@ void apaga_arquivos(Arquivo* arq) {
     apaga_arquivos(arq->filho);
     apaga_arquivos(arq->irmao);
 
-    // Liberar a memória alocada para o arquivo
+    // VERIFICAR SE ESTA CORRETO
+    if(!arq->ehDir){
+        libera_espaco(arq);
+        free(arq->conteudo);
+    }
+
     free(arq);
+
+    fs_geral->quant_arq--;
 }
 
 // não sei se ta atualizando o fat e bitmap de forma correta
 void apagadir(char* diretorio) {
-    // Copiar o caminho para uma string modificável
     char* diretorio_copia = strdup(diretorio);
 
-    // Separar o caminho em tokens
     char* path_auxiliar1 = strtok(diretorio_copia, "/");
     char* path_auxiliar2 = strtok(NULL, "/");
-
 
     // Percorre os diretórios do caminho fornecido
     // Não é possível apagar o diretório "/" 
@@ -383,17 +498,14 @@ void apagadir(char* diretorio) {
         Arquivo* cur_auxiliar = cur_diretorio->filho;
         anterior = cur_diretorio;
 
-
         // Percorre os filhos do diretório atual para encontrar o próximo diretório no caminho
         while (cur_auxiliar != NULL && strcmp(path_auxiliar2, cur_auxiliar->nome) != 0) {
             anterior = cur_auxiliar;
             cur_auxiliar = cur_auxiliar->irmao;
         }
 
-        // Move para o próximo diretório no caminho
         cur_diretorio = cur_auxiliar;
 
-        // Atualiza os tokens
         path_auxiliar1 = path_auxiliar2;
         path_auxiliar2 = strtok(NULL, "/");
     }
@@ -421,16 +533,16 @@ void apagadir(char* diretorio) {
         }
 
         printf("Diretório %s foi apagado :)\n", diretorio);
-    } else {
-        // Se o diretório não estiver vazio, podemos excluí-lo e todo o seu conteúdo
-        // Chamada para excluir todos os arquivos e subdiretórios sob o diretório a ser excluído
+    } 
+    else {
         apaga_arquivos(cur_diretorio->filho);
 
         // Remover o diretório da lista de irmãos do diretório pai
         if (anterior == NULL) {
             // O diretório a ser excluído é o primeiro filho do diretório pai
             fs_geral->root->filho = cur_diretorio->irmao;
-        } else {
+        } 
+        else {
             if(flag_parentesco == 1){
                 anterior->filho = cur_diretorio->irmao;
             }
@@ -439,16 +551,13 @@ void apagadir(char* diretorio) {
             }
         }
 
-        // Não libere a memória para o diretório, pois isso já foi feito no loop de exclusão de arquivos
-
         printf("Diretório %s e todo o seu conteúdo foram apagados :)\n", diretorio);
     }
 
-    // Liberar a memória alocada para a cópia do diretório
     free(diretorio_copia);
-
-    // Liberar a memória alocada para o diretório
     free(cur_diretorio);
+
+    fs_geral->quant_dir--;
 }
 
 // aqui não precisa escrever no fat e bitmap
@@ -496,6 +605,7 @@ void toca(char* arquivo){
         anterior = cur_arquivo;
         flag_parentesco = 1;
 
+        // RETIRAR DPS
         printf("olhando %s\n", cur_auxiliar->nome);
         printf("sendo %s\n", path_auxiliar1);
 
@@ -525,7 +635,7 @@ void toca(char* arquivo){
     if(cur_arquivo != NULL){
         cur_arquivo->tempo_ult_acess = time(NULL);
     }   
-    // Se o arquivo não existe, cria um novo arquivo 
+    // Se o arquivo não existe, cria um novo arquivo vazio
     else{
         Arquivo* novo_arquivo = (Arquivo*)malloc(sizeof(Arquivo));
         char* nome_arq = strrchr(save, '/'); 
@@ -545,10 +655,32 @@ void toca(char* arquivo){
         novo_arquivo->conteudo = (char*)malloc(sizeof(char));
         novo_arquivo->conteudo = "";
 
+        if (fs_geral->espaco_livre < BLOCK_SIZE) {
+            fprintf(stderr, "Espaço insuficiente no sistema de arquivos para criar um novo arquivo :(\n");
+            return;
+        }
+
+        int bloco_atual = 0;
+        while (bloco_atual < MAX_BLOCKS && fs_geral->bitmap[bloco_atual] != 0) {
+            bloco_atual++;
+        }
+
+        if (bloco_atual == MAX_BLOCKS) {
+            fprintf(stderr, "Não há blocos livres disponíveis para criar um novo arquivo :(\n");
+            return;
+        }
+
+        fs_geral->bitmap[bloco_atual] = 1;
+        fs_geral->fat[bloco_atual] = -1;
+        fs_geral->espaco_livre -= BLOCK_SIZE;
+        //novo_arquivo->bloco_inicio = bloco_atual;
+
         if(flag_parentesco == 1)
             anterior->filho = novo_arquivo;
         else
             anterior->irmao = novo_arquivo;
+
+        fs_geral->quant_arq++;
     }
 }
 
@@ -593,8 +725,15 @@ void apaga(char* arquivo){
         anterior->irmao = aux;
     }
 
+    printf("Arquivo %s apagado :)\n", arquivo);
+
+    // verificar se realmente está funcionando
+    libera_espaco(cur_arquivo);
+
     free(cur_arquivo->conteudo);
     free(cur_arquivo);
+
+    fs_geral->quant_arq--;
 
 }
 
@@ -602,12 +741,22 @@ void printa_recursivo(Arquivo *arq){
     if(arq == NULL)
         return;
 
-    printf("%s%s\n", arq->nome, arq->ehDir && !arq->root ? "/" : "");
+    printf("    +\n");
+    printf("    | Nome: %s%s\n", arq->nome, arq->ehDir && !arq->root ? "/" : "");
+    printf("    +\n");
+    printf("    | Tamanho: %d bytes\n", arq->tamanho_bytes);
+    printf("    +\n");
+    printf("    | Data de criação: %s", ctime(&(arq->tempo_criacao)));
+    printf("    +\n");
+    printf("    | Data de última modificação: %s", ctime(&(arq->tempo_ult_mod)));
+    printf("    +\n");
+    printf("    | Data de último acesso: %s", ctime(&(arq->tempo_ult_acess)));
+    printf("    +\n");
+    printf("-------------------------------------------------------------\n");
     printa_recursivo(arq->filho);
     printa_recursivo(arq->irmao);
 }
 
-// aqui não precisa escrever no fat e bitmap
 void lista(char* diretorio){
     // Percorrer os tokens para encontrar o diretório correto
     char* path_auxiliar1 = strtok(diretorio, "/");
@@ -635,7 +784,10 @@ void lista(char* diretorio){
 
     Arquivo* cur_arquivo = cur_diretorio->filho;
 
+    printf("-------------------------------------------------------------\n");
     printa_recursivo(cur_arquivo);
+
+    //printa_recursivo(cur_diretorio);
 }
 
 void atualizadb(){
@@ -680,12 +832,20 @@ void busca_recursivo(Arquivo* diretorio, const char* string, char* caminho_atual
 
 // aqui não precisa escrever no fat e bitmap
 void busca(const char* string){
-    busca_recursivo(fs_geral->root, string, "");
+    char aux[1] = "";
+    busca_recursivo(fs_geral->root, string, aux);
 }
 
-// aqui não precisa escrever no fat e bitmap
 void status(){
-    
+    printf("    +\n");
+    printf("    | Quantidade de diretórios: %d\n", fs_geral->quant_dir);
+    printf("    +\n");
+    printf("    | Quantidade de arquivos: %d\n", fs_geral->quant_arq);
+    printf("    +\n");
+    printf("    | Espaço livre: %ld bytes\n", fs_geral->espaco_livre);
+    printf("    +\n");
+    printf("    | Espaço desperdiçado: %ld bytes\n", (fs_geral->espaco_desperdicado%BLOCK_SIZE));
+    printf("    +\n");
 }
 
 void libera_arvore(Arquivo *arq){
@@ -699,7 +859,7 @@ void libera_arvore(Arquivo *arq){
 
 void desmonta(){
     if (fs_geral == NULL) {
-        printf("Nenhum sistema de arquivos montado para desmontar.\n");
+        printf("Nenhum sistema de arquivos montado para desmontar :(\n");
         return;
     }
 
@@ -820,7 +980,7 @@ void main_loop(){
 
         // Para testes -> comentar para realizar a entrega
         if(fs_geral != NULL)
-            printa_arvore(fs_geral->root, 0);
+            printa_arvore(fs_geral->root, 0, 1);
     }
 
 }
