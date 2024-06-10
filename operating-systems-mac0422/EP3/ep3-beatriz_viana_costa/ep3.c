@@ -5,43 +5,39 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#include <time.h> 
-#include <sys/types.h> /*uid_t*/
-#include <stdlib.h> /*free*/
-#include <string.h> /*strtok*/
+#include <time.h>
+#include <sys/time.h> 
+#include <sys/types.h>
+#include <stdlib.h> 
+#include <string.h> 
 
 /* Variáveis globais */
 Sistema_de_arquivos* fs_geral = NULL;
+Banco_de_dados* bd_geral = NULL;
 
 // arrumar essa função aqui pra printar mais bonito
 void printa_arvore(Arquivo* root, int prof, int ehUlt) {
-    if (root == NULL) return;
+    if(root == NULL) return;
 
     // Imprime a identação para a profundidade atual
-    for (int i = 0; i < prof; i++) {
-        if (i == prof - 1) {
-            if (ehUlt) {
+    for(int i = 0; i < prof; i++) {
+        if(i == prof - 1) {
+            if(ehUlt)
                 printf("└── ");
-            } else {
+            else
                 printf("├── ");
-            }
-        } else {
+        } 
+        else
             printf("│   ");
-        }
     }
 
-    // Imprime o nome do arquivo/diretório
     printf("%s%s\n", root->nome, root->ehDir && !root->root ? "/" : "");
 
-    // Imprime os filhos
-    if (root->filho != NULL) {
+    if(root->filho != NULL)
         printa_arvore(root->filho, prof + 1, root->filho->irmao == NULL);
-    }
 
-    // Imprime os irmãos
-    if (root->irmao != NULL) {
+    if(root->irmao != NULL)
         printa_arvore(root->irmao, prof, root->irmao->irmao == NULL);
-    }
 }
 
 void salva_arquivos(Arquivo* arq, FILE* file){
@@ -185,7 +181,6 @@ void monta(const char* arquivo){
     fs_geral = fs;
 }
 
-// não to atualizando nada no fat e bimap
 void copia(char* origem,char* destino){
     FILE* origem_file = fopen(origem, "r");
     if (origem_file == NULL) {
@@ -312,8 +307,6 @@ void copia(char* origem,char* destino){
         return;
     }
 
-    // VERIFICAR A PARTIR DAQ SE TA CERTO
-
     // Atualiza o bitmap e fat
     int bloco_atual = 0;
     int ultimo_bloco = -1;
@@ -348,9 +341,9 @@ void copia(char* origem,char* destino){
     fs_geral->quant_arq++;  
 }
 
-// Acho que tá ok
 void criadir(char* diretorio){
     Arquivo* cur_diretorio = fs_geral->root;
+    Arquivo* save_dir = NULL;
 
     char* path_auxiliar1 = strtok(diretorio, "/");
     char* path_auxiliar2 = strtok(NULL, "/");
@@ -358,6 +351,11 @@ void criadir(char* diretorio){
     // percorre os diretórios 
     while(path_auxiliar2 != NULL){
         Arquivo* cur_auxiliar = cur_diretorio->filho;
+
+        if(!cur_auxiliar->ehDir)
+            save_dir = cur_diretorio;
+        else
+            save_dir = NULL;
 
         while(strcmp(path_auxiliar1,cur_auxiliar->nome) && cur_auxiliar != NULL){
             cur_auxiliar = cur_auxiliar->irmao;
@@ -380,8 +378,6 @@ void criadir(char* diretorio){
     novo_diretorio->tempo_ult_acess = novo_diretorio->tempo_criacao;
     novo_diretorio->tempo_ult_mod = novo_diretorio->tempo_criacao;
 
-    // VERIFICAR SE ESTA CORRETO
-
     // Encontrar um bloco livre no bitmap
     int bloco_livre = -1;
     for (int i = 0; i < MAX_BLOCKS; ++i) {
@@ -403,26 +399,33 @@ void criadir(char* diretorio){
 
     if(cur_diretorio->filho == NULL)
         cur_diretorio->filho = novo_diretorio;
-    // hardcoded
-    else if(strcmp(cur_diretorio->nome,"/")==0 && !cur_diretorio->filho->ehDir){
+    else if(save_dir != NULL){
         // Para que os diretórios fiquem sempre antes dos arquivos regulares
-        Arquivo* aux = cur_diretorio->filho;
-        cur_diretorio->filho = novo_diretorio;
+        Arquivo* aux = save_dir->filho;
+        save_dir->filho = novo_diretorio;
         novo_diretorio->irmao = aux;
     }
     else{
-        cur_diretorio = cur_diretorio->filho;
+        if(cur_diretorio->filho->ehDir){
+            cur_diretorio = cur_diretorio->filho;
 
-        while(cur_diretorio->irmao!=NULL && cur_diretorio->irmao->ehDir)
-            cur_diretorio = cur_diretorio->irmao;
-        
-        if(cur_diretorio->irmao == NULL)
-            cur_diretorio->irmao = novo_diretorio;
+            while(cur_diretorio->irmao!=NULL && cur_diretorio->irmao->ehDir)
+                cur_diretorio = cur_diretorio->irmao;
+            
+            if(cur_diretorio->irmao == NULL)
+                cur_diretorio->irmao = novo_diretorio;
+            else{
+                // Para que os diretórios fiquem sempre antes dos arquivos regulares
+                Arquivo* aux = cur_diretorio->irmao;
+
+                cur_diretorio->irmao = novo_diretorio;
+                novo_diretorio->irmao = aux;
+            }
+        }
         else{
-            // Para que os diretórios fiquem sempre antes dos arquivos regulares
-            Arquivo* aux = cur_diretorio->irmao;
+            Arquivo* aux = cur_diretorio->filho;
 
-            cur_diretorio->irmao = novo_diretorio;
+            cur_diretorio->filho = novo_diretorio;
             novo_diretorio->irmao = aux;
         }
     }
@@ -435,18 +438,17 @@ void criadir(char* diretorio){
 
 }
 
-// verificar se esta correto
 void libera_espaco(Arquivo* arq){
     if (arq == NULL || arq->ehDir) 
         return;
 
     int blocos_usados = (arq->tamanho_bytes + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    int bloco_atual = 0;
+    //int bloco_atual = 0;
     int blocos_liberados = 0;
 
     for (int i = 0; i < MAX_BLOCKS; ++i) {
         if (fs_geral->fat[i] != -1) {
-            int bloco_proximo = fs_geral->fat[i];
+            //int bloco_proximo = fs_geral->fat[i];
             fs_geral->fat[i] = -1;
             fs_geral->bitmap[i] = 0;
             fs_geral->espaco_livre += BLOCK_SIZE;
@@ -458,7 +460,6 @@ void libera_espaco(Arquivo* arq){
     fs_geral->espaco_desperdicado -= (blocos_liberados * BLOCK_SIZE) - arq->tamanho_bytes;
 }
 
-// não sei se ta atualizando o fat e bitmap de forma correta
 void apaga_arquivos(Arquivo* arq) {
     if (arq == NULL) return;
 
@@ -470,18 +471,20 @@ void apaga_arquivos(Arquivo* arq) {
     if(!arq->ehDir){
         libera_espaco(arq);
         free(arq->conteudo);
+        fs_geral->quant_arq--;
     }
+    else
+        fs_geral->quant_dir--;
 
     free(arq);
 
-    fs_geral->quant_arq--;
 }
 
-// não sei se ta atualizando o fat e bitmap de forma correta
 void apagadir(char* diretorio) {
     char* diretorio_copia = strdup(diretorio);
+    strcpy(diretorio_copia, diretorio);
 
-    char* path_auxiliar1 = strtok(diretorio_copia, "/");
+    char* path_auxiliar1 = strtok(diretorio, "/");
     char* path_auxiliar2 = strtok(NULL, "/");
 
     // Percorre os diretórios do caminho fornecido
@@ -494,7 +497,7 @@ void apagadir(char* diretorio) {
     // Flag para saber se o anterior é irmão ou pai
     int flag_parentesco = 1; // 1: pai, 2: irmao  
 
-    while (path_auxiliar2 != NULL) {
+    while(path_auxiliar2 != NULL) {
         Arquivo* cur_auxiliar = cur_diretorio->filho;
         anterior = cur_diretorio;
 
@@ -518,13 +521,15 @@ void apagadir(char* diretorio) {
     }
 
     // Verificar se o diretório a ser excluído está vazio
-    if (cur_diretorio->filho == NULL) {
+    if(cur_diretorio->filho == NULL) {
         // Remover o diretório da lista de irmãos do diretório pai
-        if (anterior == NULL) {
+        if(anterior == NULL) {
             // O diretório a ser excluído é o primeiro filho do diretório pai
             fs_geral->root->filho = cur_diretorio->irmao;
-        } else {
-            if(flag_parentesco == 1){
+
+        } 
+        else{
+            if(flag_parentesco == 1 && anterior->ehDir){
                 anterior->filho = cur_diretorio->irmao;
             }
             else{
@@ -560,7 +565,6 @@ void apagadir(char* diretorio) {
     fs_geral->quant_dir--;
 }
 
-// aqui não precisa escrever no fat e bitmap
 void mostra(char* arquivo){
     // Percorrer os tokens para encontrar o diretório correto
     char* path_auxiliar1 = strtok(arquivo, "/");
@@ -587,8 +591,6 @@ void mostra(char* arquivo){
     printf("%s \n%s\n", cur_arquivo->nome, cur_arquivo->conteudo);
 }
 
-// aqui não precisa escrever no fat e bitmap
-// ta dando segfault
 void toca(char* arquivo){
     // Percorrer os tokens para encontrar o diretório correto
     char* save = (char*)malloc(sizeof(strlen(arquivo)+1));
@@ -604,10 +606,6 @@ void toca(char* arquivo){
         Arquivo* cur_auxiliar = cur_arquivo->filho;
         anterior = cur_arquivo;
         flag_parentesco = 1;
-
-        // RETIRAR DPS
-        printf("olhando %s\n", cur_auxiliar->nome);
-        printf("sendo %s\n", path_auxiliar1);
 
         while(cur_auxiliar != NULL && strcmp(path_auxiliar2,cur_auxiliar->nome)){
             anterior = cur_auxiliar;
@@ -653,7 +651,7 @@ void toca(char* arquivo){
         novo_arquivo->tempo_ult_acess = novo_arquivo->tempo_criacao;
         novo_arquivo->tempo_ult_mod = novo_arquivo->tempo_criacao;
         novo_arquivo->conteudo = (char*)malloc(sizeof(char));
-        novo_arquivo->conteudo = "";
+        strcpy(novo_arquivo->conteudo, "");
 
         if (fs_geral->espaco_livre < BLOCK_SIZE) {
             fprintf(stderr, "Espaço insuficiente no sistema de arquivos para criar um novo arquivo :(\n");
@@ -681,10 +679,16 @@ void toca(char* arquivo){
             anterior->irmao = novo_arquivo;
 
         fs_geral->quant_arq++;
+
+        fs_geral->espaco_livre -= BLOCK_SIZE;
+        fs_geral->espaco_desperdicado += BLOCK_SIZE;
     }
 }
 
 void apaga(char* arquivo){
+    char* save = (char*)malloc(strlen(arquivo) + 1);
+    strcpy(save, arquivo);
+
     // Percorrer os tokens para encontrar o diretório correto
     char* path_auxiliar1 = strtok(arquivo, "/");
     char* path_auxiliar2 = path_auxiliar1;
@@ -725,9 +729,8 @@ void apaga(char* arquivo){
         anterior->irmao = aux;
     }
 
-    printf("Arquivo %s apagado :)\n", arquivo);
+    printf("Arquivo %s apagado :)\n", save);
 
-    // verificar se realmente está funcionando
     libera_espaco(cur_arquivo);
 
     free(cur_arquivo->conteudo);
@@ -790,50 +793,71 @@ void lista(char* diretorio){
     //printa_recursivo(cur_diretorio);
 }
 
-void atualizadb(){
-    salva_sistema_de_arquivos(fs_geral, fs_geral->nome);
+void apagadb_recursivo(Banco_de_dados* bd){
+    if(bd==NULL)    
+        return;
+
+    apagadb_recursivo(bd->filho);
+    apagadb_recursivo(bd->irmao);
+
+    free(bd->nome);
+    free(bd);
 }
 
-// não sei se esse resultado esta correto, confirmar depois
-void busca_recursivo(Arquivo* diretorio, const char* string, char* caminho_atual){
-    if (diretorio == NULL) {
-        return;
-    }
+Banco_de_dados* atualizadb_recursivo(Arquivo *arq){
+    if(arq == NULL)
+        return NULL;
+    
+    Banco_de_dados *aux = (Banco_de_dados*)malloc(sizeof(Banco_de_dados)*1);
+    aux->nome = (char*)malloc(sizeof(char)*sizeof(arq->nome)+1);
+    strcpy(aux->nome, arq->nome);
 
-    size_t tamanho_caminho = strlen(caminho_atual);
-    tamanho_caminho += strlen(diretorio->nome) + 2; // 2 para a barra e o caractere nulo
+    aux->irmao = atualizadb_recursivo(arq->irmao);
+    aux->filho = atualizadb_recursivo(arq->filho);
 
-    char* novo_caminho = (char*)malloc(tamanho_caminho);
-    strcpy(novo_caminho, caminho_atual);
-    strcat(novo_caminho, diretorio->nome);
-    if(!diretorio->root)
-        strcat(novo_caminho, "/");
+    return aux;
+}
 
-    // Verificar se o nome do diretório contém a string de busca
-    if (strstr(diretorio->nome, string) != NULL) {
+void atualizadb(){
+    apagadb_recursivo(bd_geral);    
+
+    // Sempre cria um banco de dados novo
+    bd_geral = (Banco_de_dados*)malloc(sizeof(Banco_de_dados));
+
+    bd_geral->nome = (char*)malloc(sizeof(char)*2);
+    strcpy(bd_geral->nome,"/");
+
+    bd_geral->irmao = NULL;
+    bd_geral->filho = atualizadb_recursivo(fs_geral->root->filho);
+}
+
+void busca_recursivo(Banco_de_dados* bd, const char* string, char* caminho_atual){
+    if(bd == NULL) 
+    return;
+
+    // Adicionar o nome atual ao caminho
+    char* novo_caminho = (char*)malloc(strlen(caminho_atual) + strlen(bd->nome) + 2);
+    sprintf(novo_caminho, "%s/%s", caminho_atual, bd->nome);
+
+    // Verificar se o nome contém a string de busca
+    if (strstr(bd->nome, string) != NULL) {
         printf("%s\n", novo_caminho);
     }
 
-    // Verificar se algum arquivo filho contém a string de busca
-    Arquivo* arquivo_atual = diretorio->filho;
-    while (arquivo_atual != NULL) {
-        if (strstr(arquivo_atual->nome, string) != NULL) {
-            printf("%s%s\n", caminho_atual, arquivo_atual->nome);
-        }
-        // Se o arquivo atual for um diretório, chamar recursivamente a função
-        if (arquivo_atual->ehDir) {
-            busca_recursivo(arquivo_atual, string, novo_caminho);
-        }
-        arquivo_atual = arquivo_atual->irmao;
-    }
+    busca_recursivo(bd->filho, string, novo_caminho);
+    busca_recursivo(bd->irmao, string, caminho_atual);
 
     free(novo_caminho);
 }
 
-// aqui não precisa escrever no fat e bitmap
 void busca(const char* string){
+    if(bd_geral == NULL){
+        printf("Não há banco de dados para realizar a busca :(\n");
+        return;
+    }
+
     char aux[1] = "";
-    busca_recursivo(fs_geral->root, string, aux);
+    busca_recursivo(bd_geral->filho, string, aux);
 }
 
 void status(){
@@ -897,12 +921,28 @@ void main_loop(){
 
         char *firstArg = strtok(line_read, " ");
 
+        // PARA O TESTE DE MEDIÇÃO DE TEMPO
+        /*
+        clock_t start_time, end_time;
+        double elapsed_time;
+
+        start_time = clock();
+        */
+
         if(!strcmp(firstArg, "monta")){
             
             char* arquivo = strtok(NULL, " ");
 
             monta(arquivo);
 
+        }
+        else if(!strcmp(firstArg, "sai")){
+
+            sai();
+
+        }
+        else if(fs_geral==NULL){
+            printf("Não há sistema de arquivos montado :(\n");
         }
         else if(!strcmp(firstArg, "copia")){
 
@@ -968,19 +1008,25 @@ void main_loop(){
             desmonta();
 
         }
-        else if(!strcmp(firstArg, "sai")){
-
-            sai();
-
-        }
         else
             printf("{ep3}: comando não encontrado: %s\n", firstArg);
 
         free(line_read);
 
-        // Para testes -> comentar para realizar a entrega
         if(fs_geral != NULL)
-            printa_arvore(fs_geral->root, 0, 1);
+            salva_sistema_de_arquivos(fs_geral, fs_geral->nome);
+
+        // PARA O TESTE DE MEDIÇÃO DE TEMPO
+        /*
+        end_time = clock();
+        elapsed_time = ((double) (end_time - start_time)) / CLOCKS_PER_SEC;
+        printf("Tempo de execução: %.9f segundos\n", elapsed_time);
+        */
+
+
+        // Para testes -> comentar para realizar a entrega
+        //if(fs_geral != NULL)
+        //    printa_arvore(fs_geral->root, 0, 1);
     }
 
 }

@@ -1,0 +1,73 @@
+AUTOR:
+Nome: Beatriz Viana Costa
+NUSP: 13673214
+E-mail: beatrizvianacosta@usp.br
+
+
+
+DESCRIÇÃO:
+O presente exercício-programa se trata de um simulador de arquivos com diversos comandos de criação e exclusão de diretórios e arquivos.
+O trabalho trata apenas arquivos de texto puro, e não realiza tratamento de erros de comando, ou seja, é esperado que o usuário utilize apenas comandos válidos em ordens válidas.
+
+
+
+COMO EXECUTAR:
+Para a compilação do programa, basta executar o seguinte comando no terminal:
+~ make
+Dessa forma, um executável nomeado "ep3" será criado.
+
+Para executar o simulador, é necessário usar o seguinte padrão de entrada:
+~ ./ep3
+
+Assim, um simulador de terminal é iniciado, e os comandos indicados no enunciado podem ser utilizados. No sistema de arquivo simulados, os arquivos regulares não possuem nenhuma indicação especial, já os diretórios são sempre acompanhados de "/" no final de seu nome.
+Nomes de até 256 caracteres são aceitos tanto para os arquivos regulares como para os diretórios, tais nomes não podem conter o caracter separador "/".
+
+
+
+DEPENDÊNCIAS:
+Sistema Operacional: Manjaro Linux 23.0.4 Uranos
+CPU: 12th Gen Intel(R) Core(TM) i7-1255U
+gcc (GCC) 13.2.1 20230801
+GNU Make 4.4.1
+
+
+
+EXPERIMENTOS:
+Os resultads a seguir foram obtidos a partir da média de 30 execuções com intervalo de confiança e nível de confiança de 95%. O comando utilizado para a medição do tempo foi clock() e o resultado foi dado em segundos.
+No teste 8 foram tentado criar 100 arquivos regulares dentro de cada diretório, contudo o programa dava Segmentation Fault.  
+
+1. Sistema de arquivos vazio:
+    1.1. Cópia de um arquivo de 1MB no ‘/’:       0.001883000
+    1.2. Cópia de um arquivo de 10MB no ‘/’:      0.007995000
+    1.3. Cópia de um arquivo de 30MB no ‘/’:      0.016106000
+    1.4. Remoção de um arquivo de 1MB no ‘/’:     0.000923000
+    1.5. Remoção de um arquivo de 10MB no ‘/’:    0.001359000
+    1.6. Remoção de um arquivo de 30MB no ‘/’:    0.000900000
+    1.7. Remoção completa de um diretório “pai” com 30 nı́veis de hierarquia abaixo dele e sem arquivo regular em nenhum dos subdiretórios:  0.000393000
+
+
+
+2. Sistema de arquivos com 10MB ocupados:
+    2.1. Cópia de um arquivo de 1MB no ‘/’:       0.001946000
+    2.2. Cópia de um arquivo de 10MB no ‘/’:      0.007248000
+    2.3. Cópia de um arquivo de 30MB no ‘/’:      0.015445000
+    2.4. Remoção de um arquivo de 1MB no ‘/’:     0.001006000
+    2.5. Remoção de um arquivo de 10MB no ‘/’:    0.001072000
+    2.6. Remoção de um arquivo de 30MB no ‘/’:    0.001407000
+    2.7. Remoção completa de um diretório “pai” com 30 nı́veis de hierarquia abaixo dele e sem arquivo regular em nenhum dos subdiretórios:  0.000381000
+
+
+
+3. Sistema ed arquivos com 50MB ocupados:
+    3.1. Cópia de um arquivo de 1MB no ‘/’:       0.001891000
+    3.2. Cópia de um arquivo de 10MB no ‘/’:      0.006355000
+    3.3. Cópia de um arquivo de 30MB no ‘/’:      0.011787000
+    3.4. Remoção de um arquivo de 1MB no ‘/’:     0.000819000
+    3.5. Remoção de um arquivo de 10MB no ‘/’:    0.001258000
+    3.6. Remoção de um arquivo de 30MB no ‘/’:    0.001185000
+    3.7. Remoção completa de um diretório “pai” com 30 nı́veis de hierarquia abaixo dele e sem arquivo regular em nenhum dos subdiretórios:  0.000273000
+    
+    
+    
+LINK DO VÍDEO (legendado):
+https://youtu.be/kuqN36H_pmQ

@@ -41,6 +41,12 @@ typedef struct {
     int quant_arq;
 }Sistema_de_arquivos;
 
+typedef struct Banco_de_dados{
+    char* nome;
+    struct Banco_de_dados* filho;
+    struct Banco_de_dados* irmao;
+}Banco_de_dados;
+
 
 /* FUNÇÕES PRINCIPAIS */
 void printa_arvore(Arquivo* root, int prof, int ehUlt);
@@ -76,8 +82,12 @@ void libera_arvore(Arquivo *arq);
 /* Funções auxiliares do lista */
 void printa_recursivo(Arquivo *arq);
 
+/* Funções auxiliares de banco de dados*/
+void apagadb_recursivo(Banco_de_dados* bd);
+Banco_de_dados* atualizadb_recursivo(Arquivo *arq);
+
 /* Funções auxiliares da busca */
-void busca_recursivo(Arquivo* diretorio, const char* string, char* caminho_atual);
+void busca_recursivo(Banco_de_dados* bd, const char* string, char* caminho_atual);
 
 /* Função auxiliar geral*/
 void libera_espaco(Arquivo* arq);
